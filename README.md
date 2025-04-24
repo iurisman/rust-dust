@@ -1,6 +1,7 @@
 # Rust Cookbook
 ### Learn Rust by building simple things.
-By Igor Urisman 2024-25
+By Igor Urisman
+Last updated April 24, 2025
 
 ### 1. Audience
 If, like me, you are coming to Rust from a language that runs on a virtual

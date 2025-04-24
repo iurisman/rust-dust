@@ -140,10 +140,12 @@ help: consider introducing a named lifetime parameter
 ```
 
 The error demonstrates the fundamental difference between a C pointer and a Rust reference: 
-a Rust reference is a borrowed value owned by some other structure outside our Stack. 
-This is clearly, not what we want. Instead, we want the `StackNode` structure and the `elem` 
-it contains to be owned by the stack. The allocation and removal of the `StackNode` instances
-should be internal to the `stack` module, while the element of type `E` would be initially
-allocated by the caller and then transferred by value to Stack in the `fn push(&mut self, elem: E)`
+a Rust reference represents a borrowed value owned by some other structure outside our Stack. 
+Clearly, this is not what we want: rather, we want the `StackNode` structure and the `elem` 
+it contains to be owned by the stack. The allocation details of `StackNode` instances
+should be private to the `stack` module, while the element of type `E` should be
+allocated by the caller and then transferred by value to our stack in the `fn push(&mut self, elem: E)`
 function call.
 
+`Rc` is similarly a bad idea because shared ownership is not what we're after. The stack should be
+the sole owner of the structures in contains.

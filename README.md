@@ -147,5 +147,7 @@ should be private to the `stack` module, while the element of type `E` should be
 allocated by the caller and then transferred by value to our stack in the `fn push(&mut self, elem: E)`
 function call.
 
-`Rc` is similarly a bad idea because shared ownership is not what we're after. The stack should be
+`Rc` is similarly the wrong idea, because shared ownership is not what we're after. The stack should be
 the sole owner of the structures in contains.
+
+#### 2.3. Working Stack (The Rust Approach)

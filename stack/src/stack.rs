@@ -37,23 +37,44 @@ impl<E> Stack<E> {
     }
 }
 
-impl<E> StackNode<E> {
-    fn new(elem: E) -> Self {
-        StackNode{next: None, elem}
-    }
-}
-
 #[cfg(test)]
 mod tests {
     use crate::stack::Stack;
 
     #[test]
-    fn test() {
+    fn int_test() {
         let mut stack: Stack<i32> = Stack::new();
+        assert!(stack.pop().is_none());
         assert_eq!(0, stack.size);
         stack.push(1);
         assert_eq!(1, stack.size);
         assert_eq!(1, stack.pop().unwrap());
         assert_eq!(0, stack.size);
+        assert!(stack.pop().is_none());
+    }
+
+    #[test]
+    fn struct_test() {
+        #[derive(Debug)]
+        struct Struct(i32, String);
+        impl PartialEq for Struct {
+            fn eq(&self, other: &Self) -> bool {
+                self.0 == other.0 && self.1 == other.1
+            }
+
+            fn ne(&self, other: &Self) -> bool {
+                !self.eq(other)
+            }
+        }
+        let mut stack: Stack<Struct> = Stack::new();
+        for i in 1..10 {
+            stack.push(Struct(i, i.to_string()));
+            assert_eq!(i, stack.size as i32);
+        }
+
+        for i in 10..1 {
+            assert_eq!(Struct(i, i.to_string()), stack.pop().unwrap());
+            assert_eq!(i-1, stack.size as i32);
+        }
     }
 }

@@ -1,6 +1,4 @@
 
-#[path = "naïve_stack.rs"]
-mod naïve_stack;
+mod naive;
 mod stack;
-
 fn main() {}

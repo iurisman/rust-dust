@@ -8,11 +8,11 @@ struct StackNode<E> {
     elem: E,
 }
 
-impl<E> Stack<E> {
+impl<'a, E> Stack<E> {
     fn new() -> Self {
         Stack { head: None, size: 0 }
     }
-    fn push(&mut self, elem: E) {
+    fn push(&mut self, elem: &'a E) {
         todo!()
     }
 
@@ -22,7 +22,7 @@ impl<E> Stack<E> {
 }
 #[cfg(test)]
 mod tests {
-    use crate::naïve_stack::Stack;
+    use crate::naive::Stack;
     #[test]
     fn test() {
         let mut stack: Stack<i32> = Stack::new();

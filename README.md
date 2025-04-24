@@ -97,7 +97,7 @@ struct StackNode {
 In C, the programmer is responsible for "manually" allocating each instance of `StackNode` and
 storing its pointer in the parent node. Pointers have a known size (that of the machine word),
 but direct pointer manipulation is exactly the brittleness that Rust intentionally does not
-allow. If we were to try with something like this
+allow. If we to try with something like this
 
 ```rust
 struct Stack<E> {
@@ -111,7 +111,7 @@ struct StackNode<E> {
 }
 ```
 
-we would get the error
+we get the error
 
 ```text
 error[E0106]: missing lifetime specifier
@@ -140,11 +140,11 @@ help: consider introducing a named lifetime parameter
 ```
 
 The error demonstrates the fundamental difference between a C pointer and a Rust reference: 
-a Rust reference represents a borrowed value owned by some other structure outside our Stack. 
+a Rust reference represents a borrowed value owned by some other value outside our Stack. 
 Clearly, this is not what we want: rather, we want the `StackNode` structure and the `elem` 
 it contains to be owned by the stack. The allocation details of `StackNode` instances
 should be private to the `stack` module, while the element of type `E` should be
-allocated by the caller and then transferred by value to our stack in the `fn push(&mut self, elem: E)`
+allocated by the caller and then moved by value to our stack in the `fn push(&mut self, elem: E)`
 function call.
 
 `Rc` is similarly the wrong idea, because shared ownership is not what we're after. The stack should be

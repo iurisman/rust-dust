@@ -1,6 +1,6 @@
 # Rust Cookbook
 ### Learn Rust by building simple things.
-By Igor Urisman
+By Igor Urisman<br>
 Last updated April 24, 2025
 
 ### 1. Audience

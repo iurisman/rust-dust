@@ -14,25 +14,23 @@ impl<E> Stack<E> {
     }
     fn push(&mut self, elem: E) {
         let mut new_node = Box::new(StackNode{next: None, elem: elem});
-        match &mut self.head {
-            None => self.head = Some(new_node),
-            Some(_) => {
-                new_node.next = self.head.take();
-                self.head = Some(new_node);
-            }
+        if self.size == 0 {
+            self.head = Some(new_node)
+        } else {
+            new_node.next = self.head.take();
+            self.head = Some(new_node);
         };
         self.size += 1;
     }
 
     fn pop(&mut self) -> Option<E> {
-        if self.size > 0 {
+        if self.size == 0 {
+            None
+        } else {
             let old_head = self.head.take().unwrap();
             self.head = old_head.next;
             self.size -= 1;
             Some(old_head.elem)
-        }
-        else {
-            None
         }
     }
 }

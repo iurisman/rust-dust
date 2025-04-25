@@ -30,7 +30,7 @@ organization is acyclic: each heap-allocated object has a single referer.
 elements, which presents an additional challenge.)
 
 #### 2.1. Naïve Stack (The Java Approach)
-Source: `src/naive.rs`
+Source: `stacksrc/naive.rs`
 
 In the naïve stack, one can see what happens if we ditch the concepts of stack and heap
 and hope that the language will handle memory management details for us. In the listing below,
@@ -75,7 +75,7 @@ Next, we consider compiler's (helpful) suggestion "_insert some indirection
 (e.g., a `Box`, `Rc`, or `&`) to break the cycle._"
 
 #### 2.2. Naïve Stack (The C Approach)
-Source: `src/naive.rs`
+Source: `stack/src/naive.rs`
 
 C too requires that all structures' sizes be known at compile time. There, the problem is resolved by
 (as suggested by the Rust compiler) indirection, replacing the inline inner structure with a pointer 
@@ -152,3 +152,50 @@ function call.
 the sole owner of the structures in contains.
 
 #### 2.3. Working Stack (The Rust Approach)
+Source: `stack/src/stack.rs`
+
+The way to fix this all is to use `Box`, the simplest way of owned heap allocation. `Box` consists
+of two parts: the fixed sized stack object that contains the pointer to the user data alocated
+on the heap. Whereas `C`'s `malloc` gives you a raw pointer into heap memory, `Box` hides that
+pointer inside the stack-allocated header. Note, that `Box` does not implement `Copy` in order
+to prevent multiple ownership of the heap data. The following is a basic implementation 
+of stack in Rust.
+
+```rust
+struct Stack<E> {
+    head: Option<Box<StackNode<E>>>,
+    size: usize,
+}
+
+struct StackNode<E> {
+    next: Option<Box<StackNode<E>>>,
+    elem: E,
+}
+
+impl<E> Stack<E> {
+    fn new() -> Self {
+        Stack{head: None, size: 0}
+    }
+    fn push(&mut self, elem: E) {
+        let mut new_node = Box::new(StackNode{next: None, elem: elem});
+        if self.size == 0 {
+            self.head = Some(new_node)
+        } else {
+            new_node.next = self.head.take();
+            self.head = Some(new_node);
+        };
+        self.size += 1;
+    }
+
+    fn pop(&mut self) -> Option<E> {
+        if self.size == 0 {
+            None
+        } else {
+            let old_head = self.head.take().unwrap();
+            self.head = old_head.next;
+            self.size -= 1;
+            Some(old_head.elem)
+        }
+    }
+}
+```

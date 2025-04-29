@@ -4,8 +4,8 @@ struct Stack<E> {
 }
 
 struct StackNode<E> {
-    elem: E,
     next: Option<StackNode<E>>,
+    elem: E,
 }
 
 impl<'a, E> Stack<E> {

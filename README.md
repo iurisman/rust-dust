@@ -233,9 +233,9 @@ The first thing that comes to mind is to simply call `pop()` in a loop:
 }
 ```
 
-This works fine in the sense that `drop_test()` now passes, but this implementation may still be improved. 
+This works fine in the sense that `drop_test()` now passes, but this implementation can still be improved. 
 The `pop()`function repeatedly disposes of the head node, but it also moves the (potentially large) element 
-value out of the `Box` and returns it, re-wrapped in `Option`. This extra memory copy is unavoidable
+value out of `Box` and returns it, re-wrapped in `Option`. This extra memory copy is unavoidable
 if the caller wants the element value, but our `drop()` function does not.
 
 The better solution is to keep taking the `Box` from `StackNode.next` and letting it drop on its
@@ -250,7 +250,7 @@ own without unpacking:
     }
 ```
 
-#### 2.6. Iterating 
+#### 2.5. Iterating 
 Source: `stack/src/stack.rs`
 
 Let's now turn our stack into an iterable collection, so that it can be iterated over as in the
@@ -262,7 +262,7 @@ next test case we're going to add:
         for i in 0..100 {
             stack.push(i.to_string());
         }
-        for i in stack {
+        for i in stack {    // Error. Stack is not an interator and does not implement `IntoIterator`.
             println!("{}", i);
         }
     }
@@ -276,12 +276,12 @@ note: required for `Stack<String>` to implement `IntoIterator`
 ```
 
 The `for` expression loops over elements of an iterator. The iterator can be provided explicitly,
-when the for expression already implements `Itarator` (and thus has the `next()` method) or implicitly,
-when the for expression implements `std::iter::IntoIterator`. As the error suggests, we just need
+when the `for` expression already implements `Itarator` (and thus has the `next()` method) or implicitly,
+when the `for` expression implements `std::iter::IntoIterator`. As the error suggests, we only need
 to implement `Iterator` for our `Stack` so that the blanket implementation of `IntoIterator` provided
-by the standard library becomes available to the compiler.
+by the standard library for any `Iterator` becomes available to the compiler.
 
-Implementing `Iterator` for our `Stack` is trivial, `next()` simply calls the `pop()` method.
+Implementing `Iterator` for our `Stack` is trivial — the `next()` method simply calls the `pop()` method.
 ```rust
 impl <E> Iterator for Stack<E> {
     type Item = E;
@@ -290,15 +290,11 @@ impl <E> Iterator for Stack<E> {
     }
 }
 ```
-
-
-There are three iterator types that a collection
-can implement:
-
-| Method       | Item Type | Ownership        | Mutability |
-|--------------|-----------|------------------|------------|
-| iter()       | &T        | Immutable borrow | No         |
-| iter_mut()   | &mut T    | Mutable borrow   | Yes        |
-| into_iter()  | T         | Ownership moved  | N/A        |
+Clearly, this iterator moves the values out of the collection, leaving it empty once the iterator
+is exhausted. This is not always what we want. Standard collections implement two more methods which
+return iterators over them, `iter()` and `iter_mut()` which borrow, without consuming, the elements of
+the collection in an immutable or mutable fashion respectively. The implementations of these methods
+is an advanced topic that I am leaving out, but if you're interested, here's 
+[an excellent write-up](https://rust-unofficial.github.io/too-many-lists/second-iter.html).
 
 

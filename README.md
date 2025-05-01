@@ -281,7 +281,7 @@ when the `for` expression implements `std::iter::IntoIterator`. As the error sug
 to implement `Iterator` for our `Stack` so that the blanket implementation of `IntoIterator` provided
 by the standard library for any `Iterator` becomes available to the compiler.
 
-Implementing `Iterator` for our `Stack` is trivial — the `next()` method simply calls the `pop()` method.
+Implementing `Iterator` for our `Stack` is trivial —`next() simply calls `pop()`.
 ```rust
 impl <E> Iterator for Stack<E> {
     type Item = E;
@@ -296,5 +296,119 @@ return iterators over them, `iter()` and `iter_mut()` which borrow, without cons
 the collection in an immutable or mutable fashion respectively. The implementations of these methods
 is an advanced topic that I am leaving out, but if you're interested, here's 
 [an excellent write-up](https://rust-unofficial.github.io/too-many-lists/second-iter.html).
+
+
+### 3. Dequeue
+
+We would greatly expand the usability of the singly-linked stack if we could turn it into a
+doubly-linked list. This will enable us to add methods `push_back()` and `pop_back()`, as well as
+implement `DoubleEndedIterator`, supporting traversal in reverse (from back to head).
+
+#### 3.1 `Box` Will Not Do
+Source: deque/src/box.rs
+
+We can improve on the singly-linked stack in the previous section by adding the necessary pointers:
+
+```rust
+struct Deque<E> {
+    head: Option<Box<DequeNode<E>>>,
+    tail: Option<Box<DequeNode<E>>>,
+    size: usize,
+}
+
+struct DequeNode<E> {
+    next: Option<Box<DequeNode<E>>>,
+    prev: Option<Box<DequeNode<E>>>,
+    elem: E,
+}
+
+impl<E> Deque<E> {
+    fn new() -> Self {
+        Deque { head: None, tail: None, size: 0 }
+    }
+}
+
+mod tests {
+    use crate::r#box::Deque;
+    #[test]
+    fn test() {
+        let mut stack: Deque<i32> = Deque::new();
+    }
+}
+```
+This scaffolding of a Deque seems fine, so let's try to implement `push()`. Both `head` and `tail` 
+should point to the first element:
+
+```rust
+fn push(&mut self, elem: E) {
+    if self.size == 0 {
+        let new_node = Box::new(DequeNode{next: self.head.take(), prev: None, elem});
+        self.head = Some(new_node);
+        self.tail = Some(new_node);  // Error: new_node has been moved.
+        self.size += 1;
+    } else {
+        todo!()
+    }
+}
+```
+This does not compile because we're attempting to use `new_node` twice and `Box` is not a copy type.
+This is intentional, because the same heap allocation can only
+have one owner. If we are to have multiple borrowers of the same heap allocation,
+something else, has to own it, deferring the ownership concern to runtime — 
+a micro garbage collector that the compiler injects into the executable.
+
+#### 3.2 Garbage Collection with `Rc`
+Source: deque/src/rc.rs
+
+`Rc` (_reference counting_) and `Arc` (_atomic reference counting_) are such micro-garbage collectors.
+they take ownership of a piece of heap and give out shared references to it freely, while
+counting (atomically, in the case of `Arc`, for thread safety) the number of referrers, including
+the original `Rc`. 
+When none are left, `Rc` drops its owned heap allocation.  Like `Box`, `Rc` is not a copy type.
+However, it implements `Clone`, such that calling the `clone()` method produces another 
+instance of `Rc` pointing to the same heap allocation.
+
+Our dequeue scaffolding now runs:
+```rust
+use std::rc::Rc;
+struct Deque<E> {
+    head: Option<Rc<DequeNode<E>>>,
+    tail: Option<Rc<DequeNode<E>>>,
+    size: usize,
+}
+
+struct DequeNode<E> {
+    next: Option<Rc<DequeNode<E>>>,
+    prev: Option<Rc<DequeNode<E>>>,
+    elem: E,
+}
+
+impl<E> Deque<E> {
+    fn new() -> Self {
+        Deque { head: None, tail: None, size: 0 }
+    }
+    fn push(&mut self, elem: E) {
+        if self.size == 0 {
+            let new_node = Rc::new(DequeNode{next: self.head.take(), prev: None, elem});
+            self.head = Some(new_node.clone()); // Clone before new_node gets moved on the next line.
+            self.tail = Some(new_node);
+            self.size += 1;
+        } else {
+            todo!()
+        }
+    }
+}
+
+mod tests {
+    use crate::rc::Deque;
+    #[test]
+    fn test() {
+        let mut deque: Deque<i32> = Deque::new();
+        deque.push(1);
+    }
+}
+```
+
+
 
 

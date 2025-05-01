@@ -28,10 +28,6 @@ impl<E> Stack<E> {
             }
         }
     }
-
-    // fn peek(&mut self) -> Option<&E> {
-    //     self.head.as_ref().map(|node| &node.elem)
-    // }
 }
 
 

@@ -1,5 +1,5 @@
 [package]
-name = "rust-cookbook-deque"
+name = "rust-dust-deque"
 version = "0.1.0"
 edition = "2021"
 

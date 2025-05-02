@@ -17,13 +17,16 @@ impl<E> Deque<E> {
     }
     fn push(&mut self, elem: E) {
         if self.size == 0 {
-            let new_node = Rc::new(DequeNode{next: self.head.take(), prev: None, elem});
+            let new_node = Rc::new(DequeNode{next: None, prev: None, elem});
             self.head = Some(new_node.clone());
             self.tail = Some(new_node);
-            self.size += 1;
         } else {
-            todo!()
+            let old_head = self.head.take();
+            let new_node = Rc::new(DequeNode{next: old_head.clone(), prev: None, elem});
+            old_head.unwrap().prev = Some(new_node.clone());
+            self.head = Some(new_node.clone());
         }
+        self.size += 1;
     }
 }
 

@@ -389,13 +389,13 @@ impl<E> Deque<E> {
     }
     fn push(&mut self, elem: E) {
         if self.size == 0 {
-            let new_node = Rc::new(DequeNode{next: self.head.take(), prev: None, elem});
+            let new_node = Rc::new(DequeNode{next: None, prev: None, elem});
             self.head = Some(new_node.clone()); // Clone before new_node gets moved on the next line.
             self.tail = Some(new_node);
-            self.size += 1;
         } else {
             todo!()
         }
+        self.size += 1;
     }
 }
 
@@ -409,6 +409,55 @@ mod tests {
 }
 ```
 
+Note that we must clone the `Rc` value before moving it.  
+
+Now, let's implement the case when there's already one or more nodes in the list. 
+This will require mutating nodes already inside 'Rc's:
+```rust
+    fn push(&mut self, elem: E) {
+        if self.size == 0 {
+            let new_node = Rc::new(DequeNode{next: None, prev: None, elem});
+            self.head = Some(new_node.clone());
+            self.tail = Some(new_node);
+        } else {
+            let old_head = self.head.take();
+            let new_head = Rc::new(DequeNode{next: old_head.clone(), prev: None, elem});
+            self.head = Some(new_head.clone());
+            old_head.unwrap().prev = Some(new_head);  // Error: `Rc` is immutable.
+        }
+        self.size += 1;
+    }
+```
+
+This does not compile:
+```text
+error[E0594]: cannot assign to data in an `Rc`
+  --> src/rc.rs:26:13
+   |
+26 |             old_head.unwrap().prev = Some(new_node.clone());
+   |             ^^^^^^^^^^^^^^^^^^^^^^ cannot assign
+   |
+   = help: trait `DerefMut` is required to modify through a dereference, but it is not implemented for `Rc<rc::DequeNode<E>>`
+```
+The reason for the error is that the `Rc` type follows Rust's general principle that shared references
+are immutable. Conveniently, there's a white fortepiano in the bushes: the docs for `Rc` feature
+this excerpt:
+
+> Shared references in Rust disallow mutation by default, and Rc is no exception: 
+> you cannot generally obtain a mutable reference to something inside an Rc. 
+> If you need mutability, put a Cell or RefCell inside the Rc.
+
+`Cell` is typically used for copy types where the cell's contents aren't actually mutated, but
+replaced. The non-copy types or larger copy types are advised to prefer `RefCopy`, which enables
+direct access to the cell's content with the following methods:
+```rust
+borrow(&self) -> &T 
+borrow_ref(&self) -> &mut T
+```
+Both methods perform a runtime check, ensuring that at most one mutable borrower exists at a time, 
+and that at no time an immutable borrower co-exists with a mutable borrower. If these invariants
+are violated, the calling thread will panic. 
 
 
-
+#### 3.3 Inner Mutability with `RefCell`
+Source: deque/src/deque.rs

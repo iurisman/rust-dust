@@ -18,20 +18,6 @@ impl<E> Deque<E> {
         Deque { head: None, tail: None, size: 0 }
     }
 
-    // fn push(&mut self, elem: E) {
-    //     if self.size == 0 {
-    //         let new_node = Rc::new(RefCell::new(DequeNode{next: None, prev: None, elem}));
-    //         self.head = Some(new_node.clone());
-    //         self.tail = Some(new_node);
-    //     } else {
-    //         let old_head = self.head.take();
-    //         let new_head = Rc::new(RefCell::new(DequeNode{next: old_head.clone(), prev: None, elem}));
-    //         self.head = Some(new_head.clone());
-    //         old_head.unwrap().borrow_mut().prev = Some(new_head);
-    //     }
-    //     self.size += 1;
-    // }
-
     fn push(&mut self, elem: E) {
         match self.head.take() {
             None => {
@@ -49,20 +35,6 @@ impl<E> Deque<E> {
         self.size += 1;
     }
 
-    // pub fn pop_front(&mut self) -> Option<E> {
-    //     self.head.take().map(|old_head| {
-    //         match old_head.borrow_mut().next.take() {
-    //             Some(new_head) => {
-    //                 new_head.borrow_mut().prev.take();
-    //                 self.head = Some(new_head);
-    //             }
-    //             None => {
-    //                 self.tail.take();
-    //             }
-    //         }
-    //         Rc::try_unwrap(old_head).ok().unwrap().into_inner().elem
-    //     })
-    // }
 
     fn pop(&mut self) -> Option<E> {
         self.head.take().map (|old_head| {

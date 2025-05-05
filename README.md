@@ -440,7 +440,7 @@ error[E0594]: cannot assign to data in an `Rc`
    = help: trait `DerefMut` is required to modify through a dereference, but it is not implemented for `Rc<rc::DequeNode<E>>`
 ```
 The reason for the error is that the `Rc` type follows Rust's general principle that shared references
-are immutable. Conveniently, the docs for `Rc` feature this suggestion:
+are immutable. Conveniently, the docs for `Rc` anticipate this hurdle and offer this suggestion:
 
 > Shared references in Rust disallow mutation by default, and Rc is no exception: 
 > you cannot generally obtain a mutable reference to something inside an Rc. 
@@ -460,22 +460,93 @@ Both methods perform a runtime check, ensuring that at most one mutable borrower
 and that at no time an immutable borrower co-exists with a mutable borrower. If these invariants
 are violated, the calling thread will panic. 
 
-Inserting `RefCell` between `Rc` and `DequeNode` yields the correctly working implementation:
+Inserting `RefCell` between `Rc` and `DequeNode` yields working implementation of the `push()` method.
+We can now update the old head's `prev` link by borrowing a mutable reference to it from `RefCell`.
+The borrowed reference lives until its value exits scope, i.e. just that the expression 
+`old_head.borrow_mut().prev = Some(new_head);`.
 
 ```rust
+use std::rc::Rc;
+use std::cell::RefCell;
+
+struct Deque<E> {
+    head: Option<Rc<RefCell<DequeNode<E>>>>,
+    tail: Option<Rc<RefCell<DequeNode<E>>>>,
+    size: usize,
+}
+
+struct DequeNode<E> {
+    next: Option<Rc<RefCell<DequeNode<E>>>>,
+    prev: Option<Rc<RefCell<DequeNode<E>>>>,
+    elem: E,
+}
+
+impl<E> Deque<E> {
+    fn new() -> Self {
+        Deque { head: None, tail: None, size: 0 }
+    }
+
     fn push(&mut self, elem: E) {
         match self.head.take() {
             None => {
-                let new_node = Rc::new(RefCell::new(DequeNode { next: None, prev: None, elem }));
-                self.head = Some(new_node.clone());
-                self.tail = Some(new_node);
+                let new_head = Rc::new(RefCell::new(DequeNode { next: None, prev: None, elem }));
+                self.head = Some(new_head.clone());
+                self.tail = Some(new_head);
             }
             Some(old_head) => {
-                let new_head = Rc::new(RefCell::new(DequeNode { next: Some(old_head.clone()), prev: None, elem }));
+                let new_head =
+                    Rc::new(RefCell::new(DequeNode { next: Some(old_head.clone()), prev: None, elem }));
                 self.head = Some(new_head.clone());
                 old_head.borrow_mut().prev = Some(new_head);
             }
         }
         self.size += 1;
+    }
+}
 ```
+
+Likewise, we 
+```rust
+impl<E> Deque<E> {
+    fn pop(&mut self) -> Option<E> {
+        self.head.take().map(|old_head| {
+            self.head = old_head.borrow_mut().next.take();
+            match &self.head {
+                Some(new_head) => {
+                    // New head's prev link is now null;
+                    new_head.borrow_mut().prev.take();
+                }
+                None => {
+                    // No more nodes left.
+                    self.tail = None
+                }
+            }
+            self.size -= 1;
+            Rc::try_unwrap(old_head).ok().unwrap().into_inner().elem
+        })
+    }
+}
+```
+
+
+```rust
+fn pop(&mut self) -> Option<E> {
+    self.head.take().map (|old_head| {
+        self.head = old_head.borrow_mut().next.take();
+        match &self.head {
+            Some(new_head) => {
+                // New head's prev link is now null;
+                new_head.borrow_mut().prev.take();
+            }
+            None => {
+                // No more nodes left.
+                self.tail = None
+            }
+        }
+        self.size -= 1;
+        Rc::try_unwrap(old_head).ok().unwrap().into_inner().elem
+    })
+}
+```
+
 

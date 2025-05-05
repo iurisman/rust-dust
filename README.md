@@ -185,10 +185,10 @@ impl<E> Stack<E> {
     fn pop(&mut self) -> Option<E> {
         match self.head.take() {
             None => None,
-            Some(head) => {
-                self.head = head.next;
+            Some(old_head) => {
+                self.head = old_head.next;
                 self.size -= 1;
-                Some(head.elem)
+                Some(old_head.elem)
             }
         }
     }
@@ -447,6 +447,9 @@ this excerpt:
 > you cannot generally obtain a mutable reference to something inside an Rc. 
 > If you need mutability, put a Cell or RefCell inside the Rc.
 
+#### 3.3 Inner Mutability with `RefCell`
+Source: deque/src/deque.rs
+
 `Cell` is typically used for copy types where the cell's contents aren't actually mutated, but
 replaced. The non-copy types or larger copy types are advised to prefer `RefCopy`, which enables
 direct access to the cell's content with the following methods:
@@ -458,6 +461,21 @@ Both methods perform a runtime check, ensuring that at most one mutable borrower
 and that at no time an immutable borrower co-exists with a mutable borrower. If these invariants
 are violated, the calling thread will panic. 
 
+Inserting `RefCell` between `Rc` and `DequeNode` yields the correctly working implementation:
 
-#### 3.3 Inner Mutability with `RefCell`
-Source: deque/src/deque.rs
+```rust
+    fn push(&mut self, elem: E) {
+        match self.head.take() {
+            None => {
+                let new_node = Rc::new(RefCell::new(DequeNode { next: None, prev: None, elem }));
+                self.head = Some(new_node.clone());
+                self.tail = Some(new_node);
+            }
+            Some(old_head) => {
+                let new_head = Rc::new(RefCell::new(DequeNode { next: Some(old_head.clone()), prev: None, elem }));
+                self.head = Some(new_head.clone());
+                old_head.borrow_mut().prev = Some(new_head);
+            }
+        }
+        self.size += 1;
+```

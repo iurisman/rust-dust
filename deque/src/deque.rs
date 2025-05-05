@@ -13,31 +13,90 @@ struct DequeNode<E> {
 }
 
 impl<E> Deque<E> {
+
     fn new() -> Self {
         Deque { head: None, tail: None, size: 0 }
     }
+
+    // fn push(&mut self, elem: E) {
+    //     if self.size == 0 {
+    //         let new_node = Rc::new(RefCell::new(DequeNode{next: None, prev: None, elem}));
+    //         self.head = Some(new_node.clone());
+    //         self.tail = Some(new_node);
+    //     } else {
+    //         let old_head = self.head.take();
+    //         let new_head = Rc::new(RefCell::new(DequeNode{next: old_head.clone(), prev: None, elem}));
+    //         self.head = Some(new_head.clone());
+    //         old_head.unwrap().borrow_mut().prev = Some(new_head);
+    //     }
+    //     self.size += 1;
+    // }
+
     fn push(&mut self, elem: E) {
-        if self.size == 0 {
-            let new_node = Rc::new(RefCell::new(DequeNode{next: None, prev: None, elem}));
-            self.head = Some(new_node.clone());
-            self.tail = Some(new_node);
-        } else {
-            let old_head = self.head.take();
-            let new_head = Rc::new(RefCell::new(DequeNode{next: old_head.clone(), prev: None, elem}));
-            self.head = Some(new_head.clone());
-            old_head.unwrap().borrow_mut().prev = Some(new_head);
+        match self.head.take() {
+            None => {
+                let new_node = Rc::new(RefCell::new(DequeNode { next: None, prev: None, elem }));
+                self.head = Some(new_node.clone());
+                self.tail = Some(new_node);
+            }
+            Some(old_head) => {
+                let new_head =
+                    Rc::new(RefCell::new(DequeNode { next: Some(old_head.clone()), prev: None, elem }));
+                self.head = Some(new_head.clone());
+                old_head.borrow_mut().prev = Some(new_head);
+            }
         }
         self.size += 1;
     }
+
+    // pub fn pop_front(&mut self) -> Option<E> {
+    //     self.head.take().map(|old_head| {
+    //         match old_head.borrow_mut().next.take() {
+    //             Some(new_head) => {
+    //                 new_head.borrow_mut().prev.take();
+    //                 self.head = Some(new_head);
+    //             }
+    //             None => {
+    //                 self.tail.take();
+    //             }
+    //         }
+    //         Rc::try_unwrap(old_head).ok().unwrap().into_inner().elem
+    //     })
+    // }
+
+    fn pop(&mut self) -> Option<E> {
+        self.head.take().map (|old_head| {
+            self.head = old_head.borrow_mut().next.take();
+            match &self.head {
+                Some(new_head) => {
+                    // New head's prev link is now null;
+                    new_head.borrow_mut().prev.take();
+                }
+                None => {
+                    // No more nodes left.
+                    self.tail = None
+                }
+            }
+            self.size -= 1;
+            Rc::try_unwrap(old_head).ok().unwrap().into_inner().elem
+        })
+     }
 }
+
 
 mod tests {
     use crate::deque::Deque;
     #[test]
-    fn test() {
+    fn test_front() {
         let mut deque: Deque<i32> = Deque::new();
         assert_eq!(deque.size, 0);
-        deque.push(1);
-        assert_eq!(deque.size, 1);
+        for i in 0..10 {
+            deque.push(i);
+            assert_eq!(deque.size, (i + 1) as usize);
+        }
+        for i in (0..10).rev() {
+            assert_eq!(deque.pop().unwrap(), i);
+            assert_eq!(deque.size, i as usize);
+        }
     }
 }

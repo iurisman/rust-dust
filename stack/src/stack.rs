@@ -21,10 +21,10 @@ impl<E> Stack<E> {
     fn pop(&mut self) -> Option<E> {
         match self.head.take() {
             None => None,
-            Some(head) => {
-                self.head = head.next;
+            Some(old_head) => {
+                self.head = old_head.next;
                 self.size -= 1;
-                Some(head.elem)
+                Some(old_head.elem)
             }
         }
     }

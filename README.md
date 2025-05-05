@@ -357,7 +357,7 @@ have one owner. If we are to have multiple borrowers of the same heap allocation
 something else, has to own it, deferring the ownership concern to runtime — 
 a micro garbage collector that the compiler injects into the executable.
 
-#### 3.2 Garbage Collection with `Rc`
+#### 3.2 Runtime Garbage Collection with `Rc`
 Source: deque/src/rc.rs
 
 `Rc` (_reference counting_) and `Arc` (_atomic reference counting_) are such micro-garbage collectors.
@@ -440,8 +440,7 @@ error[E0594]: cannot assign to data in an `Rc`
    = help: trait `DerefMut` is required to modify through a dereference, but it is not implemented for `Rc<rc::DequeNode<E>>`
 ```
 The reason for the error is that the `Rc` type follows Rust's general principle that shared references
-are immutable. Conveniently, there's a white fortepiano in the bushes: the docs for `Rc` feature
-this excerpt:
+are immutable. Conveniently, the docs for `Rc` feature this suggestion:
 
 > Shared references in Rust disallow mutation by default, and Rc is no exception: 
 > you cannot generally obtain a mutable reference to something inside an Rc. 
@@ -479,3 +478,4 @@ Inserting `RefCell` between `Rc` and `DequeNode` yields the correctly working im
         }
         self.size += 1;
 ```
+

@@ -299,7 +299,7 @@ the collection in an immutable or mutable fashion respectively. The implementati
 is an advanced topic that I am leaving out, but if you're interested, here's 
 [an excellent write-up](https://rust-unofficial.github.io/too-many-lists/second-iter.html).
 
-#### 2.6. Future Improvements
+#### 2.6. Deficiencies
 
 Our implementation of the stack data structure is for educational purposes only. You should not use 
 it in production for the following reasons:
@@ -618,3 +618,55 @@ and `pop()` methods, that operate on the back end of the queue.
     }
     ...
 ```
+
+#### 3.4. Iterating
+Because our deque is double ended, we want to implement the `DoubleEndedIterator` trait, in addition
+to the `Iterator` trait to be able to iterate in both directions. The implementations simply wrap
+calls to `pop()` and `pop_back()` respectively.
+
+```rust
+impl<E> Iterator for Deque<E> {
+    type Item = E;
+
+    fn next(&mut self) -> Option<Self::Item> {
+        self.pop()
+    }
+}
+
+impl <E> DoubleEndedIterator for Deque<E> {
+    fn next_back(&mut self) -> Option<Self::Item> {
+        self.pop_back()
+    }
+}
+```
+
+If you're coming from an object oriented language, you may wonder why we implemented the two traits
+separately, geven `DoubleEndedIterator`'s definition:
+```rust
+pub trait DoubleEndedIterator: Iterator {
+    // Required method
+    fn next_back(&mut self) -> Option<Self::Item>;
+
+    // Provided methods
+    ...
+}
+```
+
+In, e.g. Scala, when a trait extends another trait, an implementing class implements both methods,
+while implementing the descendent trait. In Rust, however, `trait DoubleEndedIterator: Iterator` 
+means that implementing structures must also implement, i.e. `Iterator` is not a supertype, but
+a (lower) type bound, with the implication that `Self` is already an `Iterator` and that 
+`DoubleEndedIterator`'s element type is `Self::Item`. Rust does not support any traditional notion
+of subtyping.
+
+#### 3.5. Cleanup
+Let's now add a new test case
+```rust
+
+#[test]
+    fn drop_test() {
+        let mut stack: Stack<i32> = Stack::new();
+        for i in 0..100000 {
+            stack.push(i);
+        }
+    }

@@ -114,21 +114,4 @@ mod tests {
             println!("{}", i);
         }
     }
-
-    // #[test]
-    // fn peek_test() {
-    //     let mut stack: Stack<String> = Stack::new();
-    //     assert!(stack.pop().is_none());
-    //     assert_eq!(0, stack.size);
-    //     assert!(stack.peek().is_none());
-    //     stack.push(String::from("Hello"));
-    //     assert_eq!(1, stack.size);
-    //     assert_eq!("Hello", stack.peek().unwrap());
-    //     assert_eq!("Hello", stack.peek().unwrap());
-    //     stack.push(String::from("World"));
-    //     assert_eq!(2, stack.size);
-    //     let peek = stack.peek().unwrap();
-    //     assert_eq!(peek, &stack.pop().unwrap());
-    // }
-
 }

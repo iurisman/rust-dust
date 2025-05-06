@@ -93,6 +93,20 @@ impl<E> Deque<E> {
     }
 }
 
+impl<E> Iterator for Deque<E> {
+    type Item = E;
+
+    fn next(&mut self) -> Option<Self::Item> {
+        self.pop()
+    }
+}
+
+impl <E> DoubleEndedIterator for Deque<E> {
+    fn next_back(&mut self) -> Option<Self::Item> {
+        self.pop_back()
+    }
+}
+
 mod tests {
     use crate::deque::Deque;
     #[test]
@@ -174,4 +188,22 @@ mod tests {
         assert_eq!(deque.size, 0);
     }
 
+    #[test]
+    fn test_iterator() {
+        let mut deque: Deque<String> = Deque::new();
+        for i in 0..10 {
+            deque.push(i.to_string());
+        }
+        for (s, ix) in deque.zip((0..10).rev()) {
+            assert_eq!(ix, s.parse::<i32>().unwrap());
+        }
+    }
+
+    #[test]
+    fn drop_test() {
+        let mut deque: Deque<i32> = Deque::new();
+        for i in 0..100000 {
+            deque.push(i);
+        }
+    }
 }

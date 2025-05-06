@@ -18,6 +18,7 @@ impl<E> Deque<E> {
         Deque { head: None, tail: None, size: 0 }
     }
 
+    /// Insert at the head of the deque.
     fn push(&mut self, elem: E) {
         match self.head.take() {
             None => {
@@ -35,6 +36,7 @@ impl<E> Deque<E> {
         self.size += 1;
     }
 
+    /// Pop off the head of the deque.
     fn pop(&mut self) -> Option<E> {
         self.head.take().map (|old_head| {
             self.head = old_head.borrow_mut().next.take();
@@ -53,6 +55,7 @@ impl<E> Deque<E> {
         })
      }
 
+    /// Insert at the back of the queue
     fn push_back(&mut self, elem: E) {
         match self.tail.take() {
             None => {
@@ -70,6 +73,7 @@ impl<E> Deque<E> {
         self.size += 1;
     }
 
+    /// Pop off the back of the queue.
     fn pop_back(&mut self) -> Option<E> {
         self.tail.take().map (|old_tail| {
             self.tail = old_tail.borrow_mut().prev.take();

@@ -3,6 +3,8 @@
 By Igor Urisman<br>
 Last updated April 24, 2025
 
+Also available at https://urisman.net
+
 ### 1. Audience
 If, like me, you are coming to Rust from a language that runs on a virtual
 machine, like Java or Erlang, your biggest challenge is Rust's memory safety
@@ -486,6 +488,7 @@ impl<E> Deque<E> {
         Deque { head: None, tail: None, size: 0 }
     }
 
+    /// Insert at the head of the deque.
     fn push(&mut self, elem: E) {
         match self.head.take() {
             None => {
@@ -505,9 +508,22 @@ impl<E> Deque<E> {
 }
 ```
 
-Likewise, we 
+Likewise, the implementation of the `pop()` method borrows mutable references to the head of the que
+and its `prev` links in order to mutate via the interior mutability mechanism provided by `RefCell`. 
+
+The implementation of the `pop()` method is also straightforward, except perhaps for the last line
+where we move the value of type `E` to return from the method. In order to consume the `elem`,
+we need to consume the entire node `Rc<RefCell<DequeNode<E>>>` from left to right. The 
+`Rc::try_unwrap()` associated function returns the object inside the `Rc` instances re-wrapped in 
+`Result::Ok` if the passed reference is the only strong reference to the shared object, or the
+unchanged `Rc` instance if the strong reference count is > 1.  
+
 ```rust
 impl<E> Deque<E> {
+
+    ...
+    
+    /// Pop off the head of the deque.
     fn pop(&mut self) -> Option<E> {
         self.head.take().map(|old_head| {
             self.head = old_head.borrow_mut().next.take();
@@ -528,6 +544,7 @@ impl<E> Deque<E> {
 }
 ```
 
+The `pop()` method pops the head element of the deque.
 
 ```rust
 fn pop(&mut self) -> Option<E> {
@@ -549,4 +566,47 @@ fn pop(&mut self) -> Option<E> {
 }
 ```
 
+And, finally the `push_back()` and `pop_back()` methods below are the counterparts to the above `push()`
+and `pop()` methods, that operate on the back end of the queue. 
 
+```rust
+    ...
+
+    /// Insert at the back of the queue
+    fn push_back(&mut self, elem: E) {
+        match self.tail.take() {
+            None => {
+                let new_node = Rc::new(RefCell::new(DequeNode { next: None, prev: None, elem }));
+                self.head = Some(new_node.clone());
+                self.tail = Some(new_node);
+            }
+            Some(old_tail) => {
+                let new_tail =
+                    Rc::new(RefCell::new(DequeNode { next: None, prev: Some(old_tail.clone()), elem }));
+                self.tail = Some(new_tail.clone());
+                old_tail.borrow_mut().next = Some(new_tail);
+            }
+        }
+        self.size += 1;
+    }
+
+    /// Pop off the back of the queue.
+    fn pop_back(&mut self) -> Option<E> {
+        self.tail.take().map (|old_tail| {
+            self.tail = old_tail.borrow_mut().prev.take();
+            match &self.tail {
+                Some(new_tail) => {
+                    // New tail's next link is now null;
+                    new_tail.borrow_mut().next.take();
+                }
+                None => {
+                    // No more nodes left.
+                    self.head = None
+                }
+            }
+            self.size -= 1;
+            Rc::try_unwrap(old_tail).ok().unwrap().into_inner().elem
+        })
+    }
+    ...
+```

@@ -299,6 +299,14 @@ the collection in an immutable or mutable fashion respectively. The implementati
 is an advanced topic that I am leaving out, but if you're interested, here's 
 [an excellent write-up](https://rust-unofficial.github.io/too-many-lists/second-iter.html).
 
+#### 2.6. Future Improvements
+
+Our implementation of the stack data structure is for educational purposes only. You should not use 
+it in production for the following reasons:
+* Not thread safe. This can be addressed in two ways. 1) use `Arc` instead of `Rc`, which uses atomc
+  integer to increment and decrement reference counts. Should be a straightforward replacement, but
+  has a slight performance cost. 2) `RefCell` cannot be shared between threads.
+* Lacks many useful methods available on `std::vec::Vec`.
 
 ### 3. Dequeue
 

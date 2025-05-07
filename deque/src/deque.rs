@@ -202,8 +202,10 @@ mod tests {
     #[test]
     fn drop_test() {
         let mut deque: Deque<i32> = Deque::new();
-        for i in 0..100000 {
+        let size = 1000000;
+        for i in 0..size {
             deque.push(i);
         }
+        assert_eq!(size, deque.size as i32)
     }
 }

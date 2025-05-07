@@ -652,21 +652,9 @@ pub trait DoubleEndedIterator: Iterator {
 }
 ```
 
-In, e.g. Scala, when a trait extends another trait, an implementing class implements both methods,
-while implementing the descendent trait. In Rust, however, `trait DoubleEndedIterator: Iterator` 
+In, e.g. Scala, when a trait extends another trait, a class implementing the descendent trait
+implements methods from both traits. In Rust, however, `trait DoubleEndedIterator: Iterator` 
 means that implementing structures must also implement, i.e. `Iterator` is not a supertype, but
-a (lower) type bound, with the implication that `Self` is already an `Iterator` and that 
+an (upper) type bound, with the implication that `Self` is already an `Iterator` and that 
 `DoubleEndedIterator`'s element type is `Self::Item`. Rust does not support any traditional notion
 of subtyping.
-
-#### 3.5. Cleanup
-Let's now add a new test case
-```rust
-
-#[test]
-    fn drop_test() {
-        let mut stack: Stack<i32> = Stack::new();
-        for i in 0..100000 {
-            stack.push(i);
-        }
-    }

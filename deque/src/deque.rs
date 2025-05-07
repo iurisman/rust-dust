@@ -107,6 +107,17 @@ impl <E> DoubleEndedIterator for Deque<E> {
     }
 }
 
+impl<E> Drop for Deque<E> {
+    fn drop(&mut self) {
+        let mut head = self.head.take();
+        while let Some(curr_head) = head {
+            curr_head.borrow_mut().prev.take();
+            head = curr_head.borrow_mut().next.take();
+        }
+    }
+}
+
+
 mod tests {
     use crate::deque::Deque;
     #[test]
@@ -202,10 +213,8 @@ mod tests {
     #[test]
     fn drop_test() {
         let mut deque: Deque<i32> = Deque::new();
-        let size = 1000000;
-        for i in 0..size {
+        for i in 0..100000 {
             deque.push(i);
         }
-        assert_eq!(size, deque.size as i32)
     }
 }

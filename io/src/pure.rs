@@ -14,7 +14,7 @@ impl Wake for ThreadWaker {
 }
 
 /// Run a future to completion on the current thread.
-fn block_on<T>(fut: impl Future<Output = T>) -> T {
+fn block_on<T, F: Future<Output = T>>(fut: F) -> T {
     // Pin the future so it can be polled.
     let mut fut = pin!(fut);
 

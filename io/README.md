@@ -45,6 +45,5 @@ Here's why this works:
 * The Rust compiler implicitly calls `to_iter()` on the `Vec<String>` inside `flat_map()` to turn it into an iterator
 that can be flat-mapped into the iterator returned by `lines()`
 
-Note, however, that some of the tokens contain punctuation -- likely not what a caller would want. We need therefore
-to add an alphabet. It contains the characters that are considered meaningful, while the characters not in alphabet
-will be considered as whitespace.
+Note, however, that some of the tokens contain punctuation -- likely not what a caller would want. In the final version
+below we add a filter to each token that removes non-alphanumeric chars:

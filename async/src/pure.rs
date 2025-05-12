@@ -36,12 +36,12 @@ fn block_on<T, F: Future<Output = T>>(fut: F) -> T {
 mod tests {
     use super::*;
 
-    async fn hello() {
-        println!("Hi from inside a future!");
+    async fn hello<'a>() -> &'a str {
+        "Hi from inside a future!"
     }
     #[test]
     fn test_async() {
-        block_on(hello());
+        hello().poll();
     }
 }
 

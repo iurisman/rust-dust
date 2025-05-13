@@ -14,8 +14,7 @@ mod tests {
     use super::*;
     #[test]
     fn test_read_tokes() {
-        for token in  read_tokens("./verlaine.txt") {
-            println!("{}", token);
-        }
+        read_tokens("./verlaine.txt")
+            .for_each(|token| {println!("{}", token)})
     }
 }

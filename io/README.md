@@ -1,7 +1,7 @@
 ## Input/Output
 
 ### 1. File Tokenizer
-Source: read.rs
+Source: tokenizer.rs
 
 Problem: iterate over individual words in a file without allocating the entire
 file in memory.
@@ -9,7 +9,6 @@ file in memory.
 The initial intuition is to compose two std library methods `BufReader.lines()`, returning the file's
 contents as a `String` `Iterator`, and `String.split_whitespace()`, returning an iterator of string sub-slices:
 ```rust
-// 
 fn read_tokens(filename: &str) -> impl Iterator<Item=String> {
     let file = File::open(filename).unwrap();
     BufReader::new(file).lines()
@@ -33,10 +32,12 @@ each line is a string owned by this function, so we can't return references to i
 the string slices returned by `split_whitespace()` into `String`s owned by the iterator we're building to return:
 
 ```rust
+ fn read_tokens(filename: &str) -> impl Iterator<Item=String> {
     let file = File::open(filename).unwrap();
     BufReader::new(file).lines()
         .map(|res| res.unwrap())
         .flat_map(|line| line.split_whitespace().map(String::from).collect::<Vec<String>>())
+}
 ```
 Here's why this works:
 * `line.split_whitespace()` returns an iterator over tokens in a single line as `&str` slices;
@@ -45,5 +46,26 @@ Here's why this works:
 * The Rust compiler implicitly calls `to_iter()` on the `Vec<String>` inside `flat_map()` to turn it into an iterator
 that can be flat-mapped into the iterator returned by `lines()`
 
-Note, however, that some of the tokens contain punctuation -- likely not what a caller would want. In the final version
-below we add a filter to each token that removes non-alphanumeric chars:
+Note, however, that some of the tokens contain punctuation — likely not what a caller would want. In the final version
+below we add a filter to each token that removes non-alphanumeric chars.
+
+```rust
+fn read_tokens(filename: &str) -> impl Iterator<Item=String> {
+    let file = File::open(filename).unwrap();
+    BufReader::new(file).lines()
+        .map(|res| res.unwrap())
+        .flat_map(|line| line.split_whitespace().map(String::from).collect::<Vec<String>>())
+        .map(|str| str.chars().filter(|c| c.is_alphanumeric()).collect::<String>())
+}
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+    #[test]
+    fn test_read_tokes() {
+        for token in  read_tokens("./verlaine.txt") {
+            println!("{}", token);
+        }
+    }
+}
+```

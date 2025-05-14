@@ -1,7 +1,7 @@
 use std::fs::{File};
 use std::io::{BufRead, BufReader};
 ///Read tokens from a file
-fn read_tokens(filename: &str) -> impl Iterator<Item=String> {
+pub fn tokenize(filename: &str) -> impl Iterator<Item=String> {
     let file = File::open(filename).unwrap();
     BufReader::new(file).lines()
         .map(|res| res.unwrap())
@@ -13,8 +13,8 @@ fn read_tokens(filename: &str) -> impl Iterator<Item=String> {
 mod tests {
     use super::*;
     #[test]
-    fn test_read_tokes() {
-        read_tokens("./verlaine.txt")
+    fn test_tokenize() {
+        tokenize("./verlaine.txt")
             .for_each(|token| {println!("{}", token)})
     }
 }

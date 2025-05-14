@@ -3,18 +3,19 @@ use std::fmt::Debug;
 use crate::trie_node::*;
 
 pub struct Trie {
-    root: TrieNode
+    root: TrieNode,
+    size: usize,
 }
 
 impl Debug for Trie {
     fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
-        write!(f, "Trie (root: {:?})", self.root)
+        write!(f, "Trie (root: {:?}, size: {})", self.root, self.size)
     }
 }
 impl Trie {
 
     pub fn new() -> Self {
-        Trie{root: TrieNode(HashMap::new())}
+        Trie{root: TrieNode(HashMap::new()), size: 0}
     }
 
     pub fn insert(&mut self, token: &str) {
@@ -28,10 +29,11 @@ impl Trie {
                 map_value.eow = true;
             }
         }
+        self.size += 1;
     }
 
     pub fn size(&self) -> usize {
-        self.root.size()
+        self.size
     }
 
     pub fn contains(&mut self, token: &str) -> bool {
@@ -104,7 +106,17 @@ mod tests {
 
     #[test]
     fn test_mots() {
-        use
+        use rust_dust_lib::io::tokenize;
         let mut trie = Trie::new();
+        let mut word_count = 0;
+        for token in tokenize("mots.txt") {
+            trie.insert(&token);
+            word_count += 1;
+        }
+        for token in tokenize("mots.txt") {
+            assert!(trie.contains(&token));
+        }
+        assert!(!trie.contains(&"junk"));
+        assert_eq!(trie.size(), word_count);
     }
 }

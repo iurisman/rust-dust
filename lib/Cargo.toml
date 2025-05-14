@@ -1,5 +1,5 @@
 [package]
-name = "rust-dust-io"
+name = "rust-dust-lib"
 version = "0.1.0"
 edition = "2021"
 

@@ -1,3 +1,0 @@
-mod tokenizer;
-
-fn main() {}

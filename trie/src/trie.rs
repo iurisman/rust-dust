@@ -18,11 +18,11 @@ impl Trie {
     }
 
     pub fn insert(&mut self, token: &str) {
-        let mut curr_node_map = &mut self.root.0;
+        let mut curr_child_map = &mut self.root.0;
         let token_size = token.chars().count();
         for (char, ix) in token.chars().zip(1..=token_size) {
-            let map_value = curr_node_map.entry(char).or_insert(TrieNodeMapValue::new());
-            curr_node_map = &mut map_value.child_map.0;
+            let map_value = curr_child_map.entry(char).or_insert(TrieNodeMapValue::new());
+            curr_child_map = &mut map_value.child_map.0;
             // If this is the last character, set current node's eow to true
             if ix == token_size {
                 map_value.eow = true;
@@ -44,8 +44,8 @@ impl Trie {
                     if ix == token_size && next_map_value.eow == true {
                         return true;
                     } else {
-                    curr_node_map = &next_map_value.child_map.0
-                }
+                        curr_node_map = &next_map_value.child_map.0
+                    }
             }
         }
         false
@@ -56,14 +56,14 @@ impl Trie {
 mod tests {
     use super::*;
     #[test]
-    fn test_insert() {
+    fn test_small() {
         let mut trie = Trie::new();
         assert_eq!(trie.size(), 0);
         assert!(!trie.contains(&""));
         assert!(!trie.contains(&"a"));
         assert!(!trie.contains(&"apple"));
         trie.insert("apple");
-        assert_eq!(trie.size(), 5);
+        assert_eq!(trie.size(), 1);
         assert!(!trie.contains(&""));
         assert!(!trie.contains(&"a"));
         assert!(!trie.contains(&"ap"));
@@ -73,7 +73,7 @@ mod tests {
         assert!(!trie.contains(&"apples"));
 
         trie.insert("orange");
-        assert_eq!(trie.size(), 11);
+        assert_eq!(trie.size(), 2);
         assert!(!trie.contains(&""));
         assert!(!trie.contains(&"a"));
         assert!(!trie.contains(&"ap"));
@@ -92,6 +92,7 @@ mod tests {
         assert!(!trie.contains(&"pear"));
 
         trie.insert("oranges");
+        assert_eq!(trie.size(), 3);
         assert!(!trie.contains(&"o"));
         assert!(!trie.contains(&"or"));
         assert!(!trie.contains(&"ora"));
@@ -99,6 +100,11 @@ mod tests {
         assert!(!trie.contains(&"orang"));
         assert!(trie.contains(&"orange"));
         assert!(trie.contains(&"oranges"));
+    }
 
+    #[test]
+    fn test_mots() {
+        use
+        let mut trie = Trie::new();
     }
 }

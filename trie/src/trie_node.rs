@@ -9,8 +9,9 @@ impl TrieNode {
     pub(super) fn size(&self) -> usize {
         self.0.iter().fold(
             0,
-            |acc, (_, node_val)|
-                acc + 1 + node_val.child_map.size()
+            |acc, (_, node_val)| {
+                acc + node_val.eow as usize + node_val.child_map.size()
+            }
         )
     }
 }

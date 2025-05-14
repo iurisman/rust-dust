@@ -105,10 +105,11 @@ mod tests {
     }
 
     #[test]
-    fn test_mots() {
+    fn test_big() {
         use rust_dust_lib::io::tokenize;
         let mut trie = Trie::new();
         let mut word_count = 0;
+        // mots.txt contains ~336500 French words, many multibyte UTF-8.
         for token in tokenize("mots.txt") {
             trie.insert(&token);
             word_count += 1;

@@ -24,7 +24,9 @@ mod tests {
     }
     #[test]
     fn test_verlaine() {
+        let mut token_count = 0;
         tokenize_file("./verlaine.txt").unwrap()
-            .for_each(|token| {println!("{}", token)})
+            .for_each(|token| token_count += 1 );
+        assert_eq!(token_count, 45);
     }
 }

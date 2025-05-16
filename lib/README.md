@@ -30,7 +30,7 @@ its `Cargo.toml` file. It may be absolute or relative of the client project's `C
 ### 2. I/O
 
 #### 2.1. File Tokenizer
-Source: io.rs
+Source: token.rs
 
 Problem: iterate over individual words in a file without allocating the entire
 file in memory.
@@ -38,7 +38,7 @@ file in memory.
 The initial intuition is to compose two std library methods `BufReader.lines()`, returning the file's
 contents as a `String` `Iterator`, and `String.split_whitespace()`, returning an iterator of string sub-slices:
 ```rust
-fn read_tokens(filename: &str) -> impl Iterator<Item=String> {
+fn from_file(filename: &str) -> impl Iterator<Item=String> {
     let file = File::open(filename).unwrap();
     BufReader::new(file).lines()
         .map(|res| res.unwrap())
@@ -75,26 +75,40 @@ Here's why this works:
 * The Rust compiler implicitly calls `to_iter()` on the `Vec<String>` inside `flat_map()` to turn it into an iterator
 that can be flat-mapped into the iterator returned by `lines()`
 
+We're not done yet. Most use cases for call for an alphabet, or the set of valid characters. Different use cases
+may call for different alphabets. To support them we'll let the caller submit a function `(char) -> boolean` which
+does custom validation.
+
 Note, however, that some of the tokens contain punctuation — likely not what a caller would want. In the final version
-below we add a filter to each token that removes non-alphanumeric chars.
+below we add a regular expression `` filter, which removes non-alphanumeric chars.
 
 ```rust
-fn read_tokens(filename: &str) -> impl Iterator<Item=String> {
-    let file = File::open(filename).unwrap();
-    BufReader::new(file).lines()
+pub fn from_buf_reader(reader: impl Read) -> impl Iterator<Item=String> {
+    // Chars we care about plus white space to split on.
+    let alphabet = Regex::new(r#"[a-zA-Z0-9\d\s:]"#).unwrap();
+
+    BufReader::new(reader).lines()
         .map(|res| res.unwrap())
+        // moving of `alphabet` into the closure ensures that the closure won't outlive it.
+        .map(move |str| str.chars().filter(|c| alphabet.is_match(&c.to_string())).collect::<String>())
         .flat_map(|line| line.split_whitespace().map(String::from).collect::<Vec<String>>())
-        .map(|str| str.chars().filter(|c| c.is_alphanumeric()).collect::<String>())
 }
 
 #[cfg(test)]
 mod tests {
     use super::*;
     #[test]
-    fn test_read_tokes() {
-        for token in  read_tokens("./verlaine.txt") {
-            println!("{}", token);
-        }
+    fn test_punctuation() {
+        from_buf_reader(BufReader::new("oh, la , la!".as_bytes()))
+            .for_each(|token| {
+                assert!(token.chars().count() > 0 && token.chars().all(|c| c.is_alphanumeric()));
+            })
     }
-}
+    #[test]
+    fn test_verlaine() {
+        let mut token_count = 0;
+        from_file("./verlaine.txt")
+            .for_each(|_token| token_count += 1 );
+        assert_eq!(token_count, 45);
+    }
 ```

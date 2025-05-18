@@ -1,7 +1,6 @@
 use std::fs::{File};
 use std::io::{BufRead, BufReader, Read};
 use regex::Regex;
-#[derive(Debug)]
 struct Tokenizer {
     validator: fn(&char) -> bool,
 }
@@ -20,11 +19,10 @@ impl Tokenizer {
         self.from_buf_reader(file)
     }
 
-    pub fn from_buf_reader<R: Read>(&self, reader: R) -> impl Iterator<Item=String> + use<'_, R>{
+    pub fn from_buf_reader<R: Read>(&self, reader: R) -> impl Iterator<Item=String> + use<'_, R> {
         BufReader::new(reader).lines()
             .map(|res| res.unwrap())
-            // moving of `alphabet` into the closure ensures that the closure won't outlive it.
-            .map(move |str| str.chars().filter(|c| (self.validator)(c)).collect::<String>())
+            .map(|str| str.chars().filter(|c| (self.validator)(c)).collect::<String>())
             .flat_map(|line| line.split_whitespace().map(String::from).collect::<Vec<String>>())
     }
 }
@@ -35,7 +33,7 @@ mod tests {
 
     fn validator(c: &char) -> bool {
         // Chars we care about plus white space to split on.
-        Regex::new(r#"[a-zA-Z0-9\d\s:]"#).unwrap().is_match(&c.to_string())
+        Regex::new(r#"[^\p{Punct}]"#).unwrap().is_match(&c.to_string())
     }
     #[test]
     fn test_default_validator() {
@@ -56,10 +54,8 @@ mod tests {
     }
     #[test]
     fn test_verlaine() {
-        let mut token_count = 0;
         let tokenizer = Tokenizer::new_with_validator(validator);
-        tokenizer.from_file("./verlaine.txt")
-            .for_each(|_token| { println!("{}", _token); token_count += 1;});
-        assert_eq!(token_count, 44);
+        let token_count = tokenizer.from_file("./verlaine.txt").count();
+        assert_eq!(token_count, 45);
     }
 }

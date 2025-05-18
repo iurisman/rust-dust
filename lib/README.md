@@ -75,40 +75,58 @@ Here's why this works:
 * The Rust compiler implicitly calls `to_iter()` on the `Vec<String>` inside `flat_map()` to turn it into an iterator
 that can be flat-mapped into the iterator returned by `lines()`
 
-We're not done yet. Most use cases for call for an alphabet, or the set of valid characters. Different use cases
-may call for different alphabets. To support them we'll let the caller submit a function `(char) -> boolean` which
-does custom validation.
-
-Note, however, that some of the tokens contain punctuation — likely not what a caller would want. In the final version
-below we add a regular expression `` filter, which removes non-alphanumeric chars.
+But we're not done yet. Most applications for a tokenizer call for an alphabet — the set of valid characters. 
+Different use cases may call for different alphabets. To support alphabets, we'll let the caller submit a function 
+`fn(char) -> boolean` which does custom validation. Another improvement we want to make is to expose a more general
+method abstracting over the input source. The good candidate for an abstract source of bytes is the trait 
+`std::io::Read`. Any `Read`er can be wrapped into a `BufReader`, which provides an efficient way of reading a stream
+of bytes line by line, which is what we do internally.
 
 ```rust
-pub fn from_buf_reader(reader: impl Read) -> impl Iterator<Item=String> {
-    // Chars we care about plus white space to split on.
-    let alphabet = Regex::new(r#"[a-zA-Z0-9\d\s:]"#).unwrap();
-
-    BufReader::new(reader).lines()
-        .map(|res| res.unwrap())
-        // moving of `alphabet` into the closure ensures that the closure won't outlive it.
-        .map(move |str| str.chars().filter(|c| alphabet.is_match(&c.to_string())).collect::<String>())
-        .flat_map(|line| line.split_whitespace().map(String::from).collect::<Vec<String>>())
+struct Tokenizer {
+    validator: fn(&char) -> bool,
 }
 
-#[cfg(test)]
-mod tests {
-    use super::*;
-    #[test]
-    fn test_punctuation() {
-        from_buf_reader(BufReader::new("oh, la , la!".as_bytes()))
-            .for_each(|token| {
-                assert!(token.chars().count() > 0 && token.chars().all(|c| c.is_alphanumeric()));
-            })
+impl Tokenizer {
+    
+    fn default_validator(_: &char) -> bool {true}
+    
+    pub fn new() -> Tokenizer {
+        Tokenizer { validator: Self::default_validator}
     }
-    #[test]
-    fn test_verlaine() {
-        let mut token_count = 0;
-        from_file("./verlaine.txt")
-            .for_each(|_token| token_count += 1 );
-        assert_eq!(token_count, 45);
+    
+    pub fn new_with_validator(validator: fn(&char) -> bool) -> Tokenizer {
+        Tokenizer {validator}
     }
+
+    /// Read tokens from a file
+    pub fn from_file(&self, filename: &str) -> impl Iterator<Item=String> + use<'_> {
+        let file = File::open(filename).unwrap();
+        self.from_buf_reader(file)
+    }
+
+    /// Read tokens from any `Read`er
+    pub fn from_buf_reader<R: Read>(&self, reader: R) -> impl Iterator<Item=String> + use<'_, R> {
+        BufReader::new(reader).lines()
+            .map(|res| res.unwrap())
+            .map(|str| str.chars().filter(|c| (self.validator)(c)).collect::<String>())
+            .flat_map(|line| line.split_whitespace().map(String::from).collect::<Vec<String>>())
+    }
+}
 ```
+A couple of additional observations:
+
+* The type `fn(&char) -> bool` is the simplest form of a function pointer. Its size is known at compile time, so it
+  can be allocated on the stack. Only named functions have this type. In other words, only the name of a name function
+  can be passed to `Tokenizer::new_with_validator()`, but not a capturing closure. If we also want to pass a closure,
+  that captures (moves or borrows) values from the environment, `validator`'s type must be boxed, requiring runtime
+  allocation on the heap and dynamic dispatch, because the memory size of a closure depends on the types of captured
+  values.
+```rust
+struct Tokenizer {
+    validator: Box<dyn Fn(char) -> bool>
+}
+```
+* The `use<`_,R>` clause in the return types are the new syntax in Rust 2024. I don't quite understand all the nuances,
+  but the general sense is that even though a concrete implementation of `Read` (which is what the type parameter `R`
+  stands for) contains internal references, their lifetimes can be elided and will be inferrable at the call site.

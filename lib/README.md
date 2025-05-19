@@ -25,11 +25,9 @@ files:
 rust-dust-lib = { path = "path/to/lib/project" }
 ```
 where `path/to/lib/project` is the path to the library project's top level directory containing
-its `Cargo.toml` file. It may be absolute or relative of the client project's `Cargo.toml` file. 
+its `Cargo.toml` file. It may be absolute or relative of the client project's `Cargo.toml` file.
 
-### 2. I/O
-
-#### 2.1. File Tokenizer
+### 2. File Tokenizer
 Source: token.rs
 
 Problem: iterate over individual words in a file without allocating the entire

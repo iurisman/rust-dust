@@ -1,9 +1,8 @@
-use std::collections::HashMap;
 use std::fmt::Debug;
 use crate::trie_node::*;
 
 pub struct Trie {
-    root: TrieNode,
+    root: TrieNodeMapValue,
     size: usize,
 }
 
@@ -15,20 +14,16 @@ impl Debug for Trie {
 impl Trie {
 
     pub fn new() -> Self {
-        Trie{root: TrieNode(HashMap::new()), size: 0}
+        Trie{root: TrieNodeMapValue::new(), size: 0}
     }
 
     pub fn insert(&mut self, token: &str) {
-        let mut curr_child_map = &mut self.root.0;
-        let token_size = token.chars().count();
-        for (char, ix) in token.chars().zip(1..=token_size) {
-            let map_value = curr_child_map.entry(char).or_insert(TrieNodeMapValue::new());
-            curr_child_map = &mut map_value.child_map.0;
-            // If this is the last character, set current node's eow to true
-            if ix == token_size {
-                map_value.eow = true;
-            }
+        let mut curr_map_value = &mut self.root;
+        for char in token.chars() {
+            let next_map_value = curr_map_value.child_map.0.entry(char).or_insert(TrieNodeMapValue::new());
+            curr_map_value = next_map_value;
         }
+        curr_map_value.eow = true;
         self.size += 1;
     }
 
@@ -37,20 +32,16 @@ impl Trie {
     }
 
     pub fn contains(&mut self, token: &str) -> bool {
-        let mut curr_node_map = &self.root.0;
-        let token_size = token.chars().count();
-        for (char, ix) in token.chars().zip(1..=token_size) {
-            match curr_node_map.get(&char) {
+        let mut curr_map_value = &self.root;
+        for char in token.chars() {
+            match curr_map_value.child_map.0.get(&char) {
                 None => return false,
-                Some(next_map_value) =>
-                    if ix == token_size && next_map_value.eow == true {
-                        return true;
-                    } else {
-                        curr_node_map = &next_map_value.child_map.0
-                    }
+                Some(next_map_value) => {
+                    curr_map_value = next_map_value;
+                }
             }
         }
-        false
+        curr_map_value.eow
     }
 }
 

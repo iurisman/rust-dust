@@ -1,6 +1,5 @@
 use std::fs::{File};
 use std::io::{BufRead, BufReader, Read};
-use regex::Regex;
 pub struct Tokenizer {
     validator: fn(&char) -> bool,
 }
@@ -30,7 +29,7 @@ impl Tokenizer {
 #[cfg(test)]
 mod tests {
     use super::*;
-
+    use regex::Regex;
     fn validator(c: &char) -> bool {
         // Chars we care about plus white space to split on.
         Regex::new(r#"[^\p{Punct}]"#).unwrap().is_match(&c.to_string())

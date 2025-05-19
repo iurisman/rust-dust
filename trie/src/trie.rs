@@ -57,7 +57,6 @@ impl Trie {
 #[cfg(test)]
 mod tests {
     use std::cell::LazyCell;
-    use std::io::Write;
     use regex::Regex;
     use super::*;
     #[test]
@@ -131,10 +130,12 @@ mod tests {
         for token in tokenizer.from_file("auden.txt") {
             assert!(trie.contains(&token));
         }
+        assert_eq!(trie.size(), word_count);
         assert!(trie.contains(&"WH"));
         assert!(!trie.contains(&"wh"));
         assert!(trie.contains(&"Auden"));
         assert!(!trie.contains(&"Pound"));
-        assert_eq!(trie.size(), word_count);
+        assert!(trie.contains(&"Hephaestos"));
+        assert!(!trie.contains(&"hephaestos"));
     }
 }

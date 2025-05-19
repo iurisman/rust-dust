@@ -56,6 +56,9 @@ impl Trie {
 
 #[cfg(test)]
 mod tests {
+    use std::cell::LazyCell;
+    use std::io::Write;
+    use regex::Regex;
     use super::*;
     #[test]
     fn test_small() {
@@ -104,20 +107,34 @@ mod tests {
         assert!(trie.contains(&"oranges"));
     }
 
+    // Use `const` instead of `static` to avoid compiler error complaining about
+    // thread safety.
+    const PUNCT_RE:LazyCell<Regex> =
+        LazyCell::new(|| Regex::new(r#"[\p{Punct}]"#).unwrap());
+
+    /// We care about all chars except punctuation;
+    fn validator(c: &char) -> bool {
+        !PUNCT_RE.is_match(&c.to_string())
+    }
+
     #[test]
     fn test_big() {
-        use rust_dust_lib::token::from_file;
+        use rust_dust_lib::token::Tokenizer;
         let mut trie = Trie::new();
+        let tokenizer = Tokenizer::new_with_validator(validator);
         let mut word_count = 0;
-        // mots.txt contains ~336500 French words, many multibyte UTF-8.
-        for token in from_file("mots.txt") {
+        // tokenize this file
+        for token in tokenizer.from_file("auden.txt") {
             trie.insert(&token);
             word_count += 1;
         }
-        for token in from_file("mots.txt") {
+        for token in tokenizer.from_file("auden.txt") {
             assert!(trie.contains(&token));
         }
-        assert!(!trie.contains(&"junk"));
+        assert!(trie.contains(&"WH"));
+        assert!(!trie.contains(&"wh"));
+        assert!(trie.contains(&"Auden"));
+        assert!(!trie.contains(&"Pound"));
         assert_eq!(trie.size(), word_count);
     }
 }

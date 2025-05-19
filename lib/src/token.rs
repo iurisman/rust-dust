@@ -1,7 +1,7 @@
 use std::fs::{File};
 use std::io::{BufRead, BufReader, Read};
 use regex::Regex;
-struct Tokenizer {
+pub struct Tokenizer {
     validator: fn(&char) -> bool,
 }
 impl Tokenizer {

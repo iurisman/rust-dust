@@ -2,7 +2,7 @@
 Let's organize some of the exercises into a library with the goal of learning how to build one. Although
 all the problems in Rust Dust would be candidates for a library distribution, it's more straightforward
 to develop them as simple binaries. Except for those problems which I want to reuse elsewhere in the
-Rust Dust project. These are the ones included in Rust Dust Lib.
+Rust Dust project — these are the ones included in Rust Dust Lib.
 
 ### 1. How to Build a Simple Rust Library
 _Note, that this section applies to Rust 2018 or later._
@@ -114,9 +114,9 @@ impl Tokenizer {
 ```
 A couple of additional observations:
 
-* The type `fn(&char) -> bool` is the simplest form of a function pointer. Its size is known at compile time, so it
-  can be allocated on the stack. Only named functions have this type. In other words, only the name of a named function
-  can be passed to `Tokenizer::new_with_validator()`, but not a capturing closure. If we also want to pass a closure,
+* The type `fn(&char) -> bool` is the simplest form of a function pointer; its size is known at compile time, so it
+  can be allocated on the stack. Only named functions have this type, but not closures. In other words, only the 
+  name of a named function can be passed to `Tokenizer::new_with_validator()`, but not a closure. If we also want to pass a closure,
   that captures (moves or borrows) values from the environment, `validator`'s type must be boxed, requiring runtime
   allocation on the heap and dynamic dispatch, because the memory size of a closure depends on the types of captured
   values.

@@ -1,7 +1,6 @@
 # Rust Dust
 ### Learn Rust by building simple things.
 By Igor Urisman<br>
-Last updated May 8, 2025
 
 Also available at https://urisman.net
 
@@ -26,3 +25,9 @@ in the following sections, uncomment the corresponding module registration in `m
 
 #### 1. [Singly-linked Stack](stack/README.md)
 #### 2. [Foubly-linked Deque](deque/README.md)
+#### 3. [Rust Dust Library](lib/README.md)
+##### 2.1. How to Build a Simple Rust Library
+##### 2.2. Stream Tokenizer
+#### 4. [Trie (Prefix Tree)](trie/README.md)
+
+

@@ -117,7 +117,7 @@ impl Tokenizer {
 A couple of additional observations:
 
 * The type `fn(&char) -> bool` is the simplest form of a function pointer. Its size is known at compile time, so it
-  can be allocated on the stack. Only named functions have this type. In other words, only the name of a name function
+  can be allocated on the stack. Only named functions have this type. In other words, only the name of a named function
   can be passed to `Tokenizer::new_with_validator()`, but not a capturing closure. If we also want to pass a closure,
   that captures (moves or borrows) values from the environment, `validator`'s type must be boxed, requiring runtime
   allocation on the heap and dynamic dispatch, because the memory size of a closure depends on the types of captured
@@ -127,6 +127,6 @@ struct Tokenizer {
     validator: Box<dyn Fn(char) -> bool>
 }
 ```
-* The `use<`_,R>` clause in the return types are the new syntax in Rust 2024. I don't quite understand all the nuances,
+* The ``use<`_,R>`` clause in the return types are the new syntax in Rust 2024. I don't quite understand all the nuances,
   but the general sense is that even though a concrete implementation of `Read` (which is what the type parameter `R`
   stands for) contains internal references, their lifetimes can be elided and will be inferrable at the call site.

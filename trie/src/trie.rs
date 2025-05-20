@@ -48,6 +48,7 @@ impl Trie {
 #[cfg(test)]
 mod tests {
     use std::cell::LazyCell;
+    use std::sync::LazyLock;
     use regex::Regex;
     use super::*;
     #[test]
@@ -97,8 +98,6 @@ mod tests {
         assert!(trie.contains(&"oranges"));
     }
 
-    // Use `const` instead of `static` to avoid compiler error complaining about
-    // thread safety.
     const PUNCT_RE:LazyCell<Regex> =
         LazyCell::new(|| Regex::new(r#"[\p{Punct}]"#).unwrap());
 

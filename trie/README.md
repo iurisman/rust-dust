@@ -44,18 +44,19 @@ impl Debug for TrieNodeMapValue {
 The critical thing to note, is that although `TrieNode` is a recursive structure, we did not have to 
 mess around with `Box`ing things up, as we had to with the linked list. (Perhaps I should have started
 the series with trie, instead of list!) That is because `HashMap` is doing it for us. Only the root level
-`TrieNode` is allocated on the stack as part of the `Trie` struct (below), and eventhen, only the map's
+`TrieNodeMapValue` is allocated on the stack as part of the `Trie` struct (below), and even then, only 
+the child map's
 header is stored with the structure. The map's content is managed, by `HashMap`'s implementation, on the
 heap.
 
-Note as well, that I've implemented `Debug` for all the types to be able to print them for debugging. Rust
-can derive `Debug` implimentation (if we ask so with `#[derive(Debug)])`) but there are limitations,
-in particular it can't do it for recursive structures.
+Note as well, that I've implemented `Debug` for all the types to be able to print them. Rust
+can derive `Debug` implimentation (if we ask so with `#[derive(Debug)])`) for some custom types,
+but there are limitations, in particular it doesn't seem to do it for recursive structures.
 
 The final code for `Trie`:
 ```rust
 pub struct Trie {
-    root: TrieNode,
+    root: TrieNodeMapValue,
     size: usize,
 }
 
@@ -67,20 +68,16 @@ impl Debug for Trie {
 impl Trie {
 
     pub fn new() -> Self {
-        Trie{root: TrieNode(HashMap::new()), size: 0}
+        Trie{root: TrieNodeMapValue::new(), size: 0}
     }
 
     pub fn insert(&mut self, token: &str) {
-        let mut curr_child_map = &mut self.root.0;
-        let token_size = token.chars().count();
-        for (char, ix) in token.chars().zip(1..=token_size) {
-            let map_value = curr_child_map.entry(char).or_insert(TrieNodeMapValue::new());
-            curr_child_map = &mut map_value.child_map.0;
-            // If this is the last character, set current node's eow to true
-            if ix == token_size {
-                map_value.eow = true;
-            }
+        let mut curr_map_value = &mut self.root;
+        for char in token.chars() {
+            let next_map_value = curr_map_value.child_map.0.entry(char).or_insert(TrieNodeMapValue::new());
+            curr_map_value = next_map_value;
         }
+        curr_map_value.eow = true;
         self.size += 1;
     }
 
@@ -89,20 +86,62 @@ impl Trie {
     }
 
     pub fn contains(&mut self, token: &str) -> bool {
-        let mut curr_node_map = &self.root.0;
-        let token_size = token.chars().count();
-        for (char, ix) in token.chars().zip(1..=token_size) {
-            match curr_node_map.get(&char) {
+        let mut curr_map_value = &self.root;
+        for char in token.chars() {
+            match curr_map_value.child_map.0.get(&char) {
                 None => return false,
-                Some(next_map_value) =>
-                    if ix == token_size && next_map_value.eow == true {
-                        return true;
-                    } else {
-                        curr_node_map = &next_map_value.child_map.0
-                    }
+                Some(next_map_value) => {
+                    curr_map_value = next_map_value;
+                }
             }
         }
-        false
+        curr_map_value.eow
     }
 }
+```
+
+One last note. One of the tests uses [file tokenizer](../lib/src/token.rs). There, we defined the tokenizer
+constructor as `pub fn new_with_validator(validator: fn(&char) -> bool)`, which accepts only named functions,
+but not anonymous closures. The fundamental difference between the two is that closures close over values
+in the containing syntactical context, while functions don't. (Unlike Scala, where a function has access
+to values outside its body.) This decision was motivated by a simpler declaration, but now we have to be
+more verbose and define the function `validator(c: &char)`:
+
+```rust
+const PUNCT_RE:LazyCell<Regex> =
+    LazyCell::new(|| Regex::new(r#"[\p{Punct}]"#).unwrap());
+
+/// We care about all chars except punctuation;
+fn validator(c: &char) -> bool {
+    !PUNCT_RE.is_match(&c.to_string())
+}
+
+fn test_big() {
+    use rust_dust_lib::token::Tokenizer;
+    let mut trie = Trie::new();
+    let tokenizer = Tokenizer::new_with_validator(validator);
+    let mut word_count = 0;
+    for token in tokenizer.from_file("auden.txt") {
+        trie.insert(&token);
+        word_count += 1;
+    }
+    ...
+}
+```
+
+The validator function uses a regular expression to filter out punctuation. I could have defined the
+regex inside the validator function, but that would have meant re-instantiating it for every character
+in the stream! Instead, we define it statically and only once. Because the size of the resulting regex
+can only determinted after it is constructed at run time, I use the `LazyCell` facility for lazy definition
+of static values. It gets initialized only once, the first time it is accessed.
+
+Note as well, that we must use `const` with `LazyCell` because `const` implies static lifetime + immutability.
+We could have use `static` instead, which implies static lifetime, but potentially mutable value, but the
+compiler would not accept it because it knows that `LazyCell` is not thread safe. `LazyLock` is the thread
+safe version of `LazyCell`, however its thread safety comes with a runtime overhead which we should only
+have to pay if we're designing for a multithreaded environment:
+```rust
+static PUNCT_RE:LazyLock<Regex> =
+    LazyLock::new(|| Regex::new(r#"[\p{Punct}]"#).unwrap());
+
 ```

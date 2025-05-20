@@ -47,8 +47,14 @@ mess around with `Box`ing things up, as we had to with the linked list. (Perhaps
 the series with trie, instead of list!) That is because `HashMap` is doing it for us. Only the root level
 `TrieNodeMapValue` is allocated on the stack as part of the `Trie` struct (below), and even then, only 
 the child map's
-header is stored with the structure. The map's content is managed, by `HashMap`'s implementation, on the
+header is stored with the structure. The map's content is managed by `HashMap`'s implementation on the
 heap.
+
+Likewise, the destruction is cleanly handled by the default `Drop` implementation, which recursively
+calls the destructors of all the map elements. This is fine, because the depth of the recursion is
+limited by the longest token, which in a typical use case is under 20. However, if you need to use
+this `Trie` for applications where the tokens may be thousands of characters long, an explicit `Drop`
+implementation will be needed to avoid recursive stack overflows.
 
 Note as well, that I've implemented `Debug` for all the types to be able to print them. Rust
 can derive `Debug` implimentation (if we ask so with `#[derive(Debug)])`) for some custom types,

@@ -22,6 +22,7 @@ impl Debug for TrieNode {
         write!(f, "TrieNode (0 = {:?})", self.0)
     }
 }
+
 pub(super) struct TrieNodeMapValue {
     // Is the char mapping to this value end of a valid word?
     pub(super) eow: bool,
@@ -138,7 +139,7 @@ of static values. It gets initialized only once, the first time it is accessed.
 Note as well, that we must use `const` with `LazyCell` because `const` implies static lifetime + immutability.
 We could have use `static` instead, which implies static lifetime, but potentially mutable value, but the
 compiler would not accept it because it knows that `LazyCell` is not thread safe. `LazyLock` is the thread
-safe version of `LazyCell`, however its thread safety comes with a runtime overhead which we should only
+safe version of `LazyCell`, but its thread safety comes with a runtime overhead which we should only
 have to pay if we're designing for a multithreaded environment:
 ```rust
 static PUNCT_RE:LazyLock<Regex> =

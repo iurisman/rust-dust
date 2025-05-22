@@ -1,0 +1,14 @@
+version: "3"
+services:
+  db:
+    image: "postgres:13"
+    container_name: "rust-dust-http-pg13"
+    environment:
+      POSTGRES_PASSWORD: "postgres"
+    ports:
+      # Map to 6543 to avoid conflicts on loclahost.
+      - "6543:5432"
+    volumes:
+      - pgdata:/var/lib/postgresql/data
+volumes:
+  pgdata:

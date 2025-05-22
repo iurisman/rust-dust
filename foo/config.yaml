@@ -1,0 +1,7 @@
+port: 8080
+postgres:
+  host: localhost
+  port: 6543
+  user: dust
+  password: dust
+  dbname: rust_dust

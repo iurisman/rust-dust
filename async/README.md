@@ -1,4 +1,4 @@
-## Input/Output
+## Async
 
 We would greatly expand the usability of the singly-linked stack if we could turn it into a
 doubly-linked list. This will enable us to add methods `push_back()` and `pop_back()`, as well as

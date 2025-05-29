@@ -64,7 +64,30 @@ To reiterate, exceptions, at least in the modern sense of the word, have these d
 * Potentially a source of resource leaks due to early termination.
 * Undermines compiler's ability to reason about the source code.
 
-When it comes to exceptions, Rust takes the high road: if it can't do them well, it 
-won't do them at all. (So does Go, but — curiously — not Swift (2014, Apple), another
-LLVM based language.) 
 ### Living without Exceptions — Again
+
+When it comes to exceptions, Rust takes the high road: if it can't do them well, it
+won't do them at all. (So does Go, but — curiously — not Swift (2014, Apple), another
+LLVM based language.) Instead, Rust offers two error handling mechanisms: panic and `Result`.
+
+#### Panic
+
+Panics are meant to be used for systemic unrecoverable errors. It can be triggered
+explicitly with the `panic!` macro, or is triggered implicitly by
+* Calling `unwrap()` on `Result` if it is `Err`. `Result` is the subject of the next
+  section.
+* Calling `unwrap()` on `Option` if it is `None`.
+* Calling `expect()` on either `Result` or `Option`, which is just a variation of `unwrap()'
+  that allows the caller to attach last words to the panic.
+* Various arithmetic exceptions, such as division by zero and integer overflow.
+* Out-of-bounds array index.
+
+It is possible to recover from panic with `std::panic::catch_unwind` and even to
+trigger a custom panic with `std::panic::panic_any()` which takes an arbitrary type that
+can be accessed later at the point of recovery. This mechanism however is not meant for
+mimicking exception handling a la Java. 
+
+Note that panic is thread-local; panic in a non-main thread will terminate the thread,
+but not the process. There are however errors that are more disruptive than panics,
+most importantly the out-of-memory condition. At this time of this writing it 
+does not cause panic but rather terminates the process regardless what thread received it.

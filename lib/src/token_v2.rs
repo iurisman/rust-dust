@@ -1,3 +1,4 @@
+use std::error::Error;
 use std::fs::{File};
 use std::io::{BufRead, BufReader, Read};
 
@@ -23,16 +24,17 @@ impl Tokenizer {
 
     ///Read tokens from a file
     pub fn from_file(&self, filename: &str)
-        -> Result<impl Iterator<Item=String>, TokenizerError> {
+        -> Result<impl Iterator<Item=String>, TokenizerError>
+    {
         match File::open(filename) {
             Ok(file) => {
                 Ok(self.from_buf_reader(file))
             }
-            Err(err) => {
-                Err(TokenizerError {message: format!("{}", err), token: None})
+            Err(error) => {
+                print!("{:?}", error.source());
+                Err(TokenizerError {message: format!("{}", error), token: None})
             }
         }
-
     }
 
     pub fn from_buf_reader<R: Read>(&self, reader: R) -> impl Iterator<Item=String> {
@@ -71,7 +73,7 @@ mod tests {
     #[test]
     fn test_verlaine() {
         let tokenizer = Tokenizer::new_with_validator(validator);
-        let token_count = tokenizer.from_file("./verlaine.txt").unwrap().count();
+        let token_count = tokenizer.from_file("./verlaine.txtt").unwrap().count();
         assert_eq!(token_count, 45);
     }
 }

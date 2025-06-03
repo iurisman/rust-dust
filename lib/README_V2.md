@@ -156,7 +156,7 @@ it may but doesn't have to implement it.
 In rust, error propagation up the call stack is achieved by either explicit conversion
 from one error type to another, or implicitly.
 
-##### Explicit `Error` Propagation
+##### Explicit `Error` Propagation without Closures
 
 The reason the issue arises is that almost any library uses its own error type exposing methods pertinent 
 to the kinds of errors the library may encounter. Thus, our custom tokenizer error would likely want to 
@@ -200,7 +200,54 @@ to `TokenizerError`:
     }
 ```
 
- This is better but not yet right. A look at the docs for `stc::io::Error` reveals the `source()` method,
+This is better but not yet right. For one this is quite verbose: each time we have to convert from `io::Error`
+to `TokenizerError` we'd have to cut and past the same code. We can avoid this tedium by factoring the
+comon code out into an interpretation of the `From` trait, designed just for this use case:
+```rust
+impl From<std::io::Error> for TokenizerError {
+    fn from(error: std::io::Error) -> Self {
+        TokenizerError {message: format!("{}", error), token: None}
+    }
+}
+```
+Now we can rewrite the `from_file()` method more consicely:
+```rust
+    match File::open(filename) {
+        Ok(file) => { Ok(self.from_buf_reader(file)) }
+        Err(error) => { Err(From::from(error)) }
+```
+
+Conveniently, there's syntactic sugar for this exact construct: `?`. `expr?` desugars to
+```rust
+match expr {
+    Ok(value) => val,
+    Err(error) => return Err(From::from(error)),
+}
+```
+Thus, we can simplify `from_file()` even further:
+```rust
+pub fn from_file(&self, filename: &str)
+    -> Result<impl Iterator<Item=String>, TokenizerError> 
+{
+    Ok(self.from_buf_reader(File::open(filename)?)) 
+}
+```
+
+We won't even need the `Ok(...)` once we convert `from_buf_reader()` to also return `Result`, which
+I'll do next.
+
+#### Explicit `Error` Propagation with Closures
+
+
+
+
+
+
+
+
+
+
+A look at the docs for `stc::io::Error` reveals the `source()` method,
  which returns the cause of the I/O error. In this case it's `None`, because the underlying error did not
  originate in the user space, but by the OS. However, to be good citizens we should attach
- this I/O error as the source of our error to help clients of our library debug their errors.
+ this I/O error as the source of our error to help clients of our library debug their errors. 

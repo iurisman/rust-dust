@@ -98,13 +98,13 @@ impl Tokenizer {
     }
 
     /// Read tokens from a file
-    pub fn from_file(&self, filename: &str) -> impl Iterator<Item=String> + use<'_> {
+    pub fn from_file(&self, filename: &str) -> impl Iterator<Item=String> {
         let file = File::open(filename).unwrap();
         self.from_buf_reader(file)
     }
 
     /// Read tokens from any `Read`er
-    pub fn from_buf_reader<R: Read>(&self, reader: R) -> impl Iterator<Item=String> + use<'_, R> {
+    pub fn from_buf_reader<R: Read>(&self, reader: R) -> impl Iterator<Item=String> {
         BufReader::new(reader).lines()
             .map(|res| res.unwrap())
             .map(|str| str.chars().filter(|c| (self.validator)(c)).collect::<String>())
@@ -112,19 +112,13 @@ impl Tokenizer {
     }
 }
 ```
-A couple of additional observations:
-
-* The type `fn(&char) -> bool` is the simplest form of a function pointer; its size is known at compile time, so it
-  can be allocated on the stack. Only named functions have this type, but not closures. In other words, only the 
-  name of a named function can be passed to `Tokenizer::new_with_validator()`, but not a closure. If we also want to pass a closure,
-  that captures (moves or borrows) values from the environment, `validator`'s type must be boxed, requiring runtime
-  allocation on the heap and dynamic dispatch, because the memory size of a closure depends on the types of captured
-  values.
+The type `fn(&char) -> bool` is the simplest form of a function pointer; its size is known at compile time, so it
+can be allocated on the stack. Only named functions have this type, but not closures. In other words, only the name of 
+a named function can be passed to `Tokenizer::new_with_validator()`, but not a closure. If we also want to pass a closure, 
+that captures (moves or borrows) values from the environment, `validator`'s type must be boxed, requiring runtime 
+allocation on the heap and dynamic dispatch, because the memory size of a closure depends on the types of captured values.
 ```rust
 struct Tokenizer {
     validator: Box<dyn Fn(char) -> bool>
 }
 ```
-* The ``use<`_,R>`` clause in the return types are the new syntax in Rust 2024. I don't quite understand all the nuances,
-  but the general sense is that even though a concrete implementation of `Read` (which is what the type parameter `R`
-  stands for) contains internal references, their lifetimes can be elided and will be inferrable at the call site.

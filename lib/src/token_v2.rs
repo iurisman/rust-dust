@@ -1,5 +1,15 @@
 use std::fs::{File};
 use std::io::{BufRead, BufReader, Read};
+
+pub struct TokenizerError {
+    // Bad token, if any
+    pub token: Option<String>,
+    // Error message
+    pub message: String
+}
+
+type Result<'a> = std::result::Result<impl Iterator<Item=String> + use<'a>, TokenizerError>;
+
 pub struct Tokenizer {
     validator: fn(&char) -> bool,
 }
@@ -13,12 +23,12 @@ impl Tokenizer {
     }
 
     ///Read tokens from a file
-    pub fn from_file(&self, filename: &str) -> impl Iterator<Item=String> {
+    pub fn from_file(&self, filename: &str) -> Result {
         let file = File::open(filename).unwrap();
         self.from_buf_reader(file)
     }
 
-    pub fn from_buf_reader<R: Read>(&self, reader: R) -> impl Iterator<Item=String> {
+    pub fn from_buf_reader<R: Read>(&self, reader: R) -> impl Iterator<Item=String> + use<'_, R> {
         BufReader::new(reader).lines()
             .map(|res| res.unwrap())
             .map(|str| str.chars().filter(|c| (self.validator)(c)).collect::<String>())

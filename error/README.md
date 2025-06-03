@@ -61,19 +61,19 @@ To reiterate, exceptions, at least in the modern sense of the word, have these d
   the `throw` statement, just like Java, because these concepts are built into the JVM.
   (Most Scala programmers prefer to use the `Try` type, which hides these imperative verbs
   behind a more functional flow.)
-* Potentially a source of resource leaks due to early termination.
+* A source of potential resource leaks due to early termination.
 * Undermines compiler's ability to reason about the source code.
 
-### Living without Exceptions — Again
+For these reasons Rust does not support exceptions, at least the kind that can be caught.
+Instead, Rust offers two error handling mechanisms: _panic_ for non-recoverable
+exceptions that typically lead to termination of the panicking thread, and `Result` for
+recoverable errors.
 
-When it comes to exceptions, Rust takes the high road: if it can't do them well, it
-won't do them at all. (So does Go, but — curiously — not Swift (2014, Apple), another
-LLVM based language.) Instead, Rust offers two error handling mechanisms: panic and `Result`.
-
-#### Panic
+### Panic
 
 Panics are meant to be used for systemic unrecoverable errors. It can be triggered
-explicitly with the `panic!` macro, or is triggered implicitly by
+explicitly with the `panic!` macro, or is triggered implicitly by one of the following
+shortcuts:
 * Calling `unwrap()` on `Result` if it is `Err`. `Result` is the subject of the next
   section.
 * Calling `unwrap()` on `Option` if it is `None`.
@@ -82,12 +82,71 @@ explicitly with the `panic!` macro, or is triggered implicitly by
 * Various arithmetic exceptions, such as division by zero and integer overflow.
 * Out-of-bounds array index.
 
-It is possible to recover from panic with `std::panic::catch_unwind` and even to
+Panic is thread-local; a panic in a non-main thread will terminate the thread,
+but not the process. There are however errors that are more disruptive than panics,
+the out-of-memory error. At this time of this writing it does not cause panic but rather
+terminates the process regardless of what thread received it.
+
+On panic, rust compiler attempts to unwind the call stack from the point of panic to the
+entry point into the current thread and cleanup all heap allocations owned by stack 
+values. This is not guaranteed to succeed, because there's no requirement that each struct
+overrides the default implementation of `Drop`. Consequently, repeatedly panicking threads
+may end up leaking memory.
+
+Even though panic is reserved for non-recoverable errors, the standard library does
+provide a way to recover from panic with `std::panic::catch_unwind()` and even to
 trigger a custom panic with `std::panic::panic_any()` which takes an arbitrary type that
 can be accessed later at the point of recovery. This mechanism however is not meant for
-mimicking exception handling a la Java. 
+mimicking exception handling a la Java, but for libraries to be able to localize
+their panics instead of making the library users to deal with the unexpected panics
+coming from 3rd party crates.
 
-Note that panic is thread-local; panic in a non-main thread will terminate the thread,
-but not the process. There are however errors that are more disruptive than panics,
-most importantly the out-of-memory condition. At this time of this writing it 
-does not cause panic but rather terminates the process regardless what thread received it.
+### The `Result` Type
+All user errors, like trying to read a file that doesn't exist, and recoverable system
+errors, like timing out on a network call, are meant to be handled with the `Result` type.
+It's the type that is returned by any library, standard or not, so my task as a consumer
+of those libraries is to correctly handle the `Result` they return by
+either recovering from the error, like retrying the failed operation, or propagating it
+up the call stack to be handled there.
+
+In a well organized codebase, each fallible function returns an 
+object of type `Result<T,E>`, where `T` is the good result, if the function succeeded, 
+and `E` is the error type otherwise. `Result` is an enum populated by two instances. 
+`Ok(T)` wraps the successful return object, while `Err(E)` wraps the error object. 
+Both `T` and `E` are objects of any type; there's no reason on the part of the language
+designers to limit return types of my functions or what constitutes an error.
+If you're used to thinking in object-oriented languages, this seems strange: exceptions 
+are frequently handled up the call stack and across an abstraction boundary from where 
+they were thrown. In object-oriented languages, this type of behavior transparency is 
+handled with inheritance, when different error types have a common abstract supertype, 
+which compels the concrete error types to implement methods that can be used across 
+abstraction boundary.
+
+[[ Aside to be moved elsewhere ]]
+
+Rust has no type inheritance, but it expresses a similar capability with trait
+bounds, which constrain generic parameters to only those types that implement the named
+traits. For example, here's the declaration of the `std::boxed::Box` type:
+```rust
+pub struct Box<T, A = Global>(/* private fields */)
+where
+    A: Allocator,
+    T: ?Sized;
+```
+It takes two type parameters, both of which are constrained by the trait bounds. Here, 
+`A = Global` defines the default value for the type param `A`. The question mark in
+`?Sized` means somewhat of an inverse idea: it relaxes the implicit trait bound `Sized`,
+which otherwise would have been applied. All `struct`s in rust
+implement the `Sized` trait, which is to say have a known size at compile time. As we
+already saw in the implementation of stack, `Box` provides the way of deferring the
+heap allocation of `T`, such that the size of `Box` itself is known, even though the
+size of `T` may not be. Thus `?Sized` means that `T` is opted out of the trait `Sized`; 
+it may but doesn't have to implement it.
+
+[[ End aside]]
+
+In rust, error propagation up the call stack is achieved by either explicit conversion
+from one error type to another, or implicitly.
+
+#### Explicit `Error` propagation
+

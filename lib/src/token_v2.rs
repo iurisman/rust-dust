@@ -34,15 +34,28 @@ impl Tokenizer {
     pub fn from_file(&self, filename: &str)
         -> Result<impl Iterator<Item=String>, TokenizerError>
     {
-        Ok(self.from_buf_reader(File::open(filename)?))
+        self.from_buf_reader(File::open(filename)?)
 
     }
 
-    pub fn from_buf_reader<R: Read>(&self, reader: R) -> impl Iterator<Item=String> {
-        BufReader::new(reader).lines()
-            .map(|res| res.unwrap())
-            .map(|str| str.chars().filter(|c| (self.validator)(c)).collect::<String>())
-            .flat_map(|line| line.split_whitespace().map(String::from).collect::<Vec<String>>())
+    pub fn from_buf_reader<R: Read>(&self, reader: R)
+        -> Result<impl Iterator<Item=String>, TokenizerError>
+    {
+        let foo = BufReader::new(reader).lines()
+            .map(|res|
+                Ok(
+                    res?.chars().filter(|c| (self.validator)(c)).collect::<String>()
+                )
+            );
+        foo.flat_map(
+
+            |res: Result<String, std::io::Error>| res?
+                .split_whitespace()
+                .map(String::from).collect::<Result<Vec<String>>,_>()
+
+        )
+
+        //unimplemented!()
     }
 }
 

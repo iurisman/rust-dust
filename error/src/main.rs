@@ -1,18 +1,30 @@
-use std::error::Error;
+use rand::Rng;
 
 fn main()  {
-
-    words().for_each(|word| println!("{word}"));
+    words().for_each(|word| {println!("{}", word)});
 }
 
-fn lines() -> impl Iterator<Item=String> {
-    vec!(
-        "the first line",
-        "the second line",
-    ).into_iter().map(String::from)
+#[derive(Debug)]
+struct MyError(String);
+type MyResult<T> = Result<T, MyError>;
+
+fn lines() -> impl Iterator<Item=Result<String, MyError>> {
+     vec!(
+         "the first line",
+         "the second line",
+         "the third line",
+     ).into_iter().map(|str| Ok(String::from(str)))
+
 }
 
-fn words() -> impl Iterator<Item=String> {
-    lines()
-        .flat_map(|line| line.split_whitespace().map(String::from).collect::<Vec<String>>())
+fn words() -> MyResult<impl Iterator<Item=String>> {
+    let foo = lines()
+        .flat_map(|res|
+            match res {
+                Ok(line) => line.split_whitespace().map(|str| Ok(String::from(str))).collect::<Vec<Result<String,_>>>(),
+                Err(e) => vec!(Err(e)),
+            }
+        );
+
+unimplemented!()
 }

@@ -2,18 +2,13 @@ use std::{fs, io};
 use std::io::BufRead;
 
 #[derive(Debug)]
-pub struct TokenizerError {
-    // Bad token, if any
-    pub token: Option<String>,
-    // Error message
-    pub message: String,
-    // Cause
-    //pub source: Option<Box<dyn Error>>
+pub enum TokenizerError {
+    Io(io::Error),
 }
 
 impl From<io::Error> for TokenizerError {
     fn from(error: io::Error) -> Self {
-        TokenizerError {message: format!("{}", error), token: None}
+        TokenizerError::Io(error)
     }
 }
 
@@ -93,5 +88,15 @@ mod tests {
                 .unwrap()
                 .partition(|res| res.is_ok());
         assert_eq!(oks.len(), 45);
+    }
+    #[test]
+    fn test_io_error() {
+        let tokenizer = Tokenizer::new_with_validator(validator);
+        match tokenizer.from_file("./bad.txt") {
+            Ok(_) => assert!(false),
+            Err(err) => assert!(
+                matches!(err, TokenizerError::Io(foo) if foo.kind() == io::ErrorKind::NotFound)
+            ),
+        }
     }
 }

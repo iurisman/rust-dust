@@ -1,9 +1,9 @@
 use std::{fs, io};
-use std::io::{BufRead, BufReader, Lines};
+use std::io::{BufRead};
 use either::Either;
 
 #[derive(Debug)]
-enum TokenizerError {
+pub enum TokenizerError {
     Io(io::Error),
 }
 
@@ -111,11 +111,13 @@ mod tests {
     #[test]
     fn test_io_error() {
         let tokenizer = Tokenizer::new_with_validator(validator);
-        let (oks, _errs): (Vec<Result<_,_>>, Vec<Result<_, _>>) =
-            tokenizer.from_file("./verlaine.txt")
-                //.unwrap()
-                .partition(|res| res.is_ok());
-        assert_eq!(oks.len(), 45);
+        let vec = tokenizer.from_file("./bad.txt").collect::<Vec<_>>();
+        assert_eq!(vec.len(), 1);
+        match vec.first().unwrap() {
+            Ok(_) => assert!(false),
+            Err(err) => assert!(
+                matches!(err, TokenizerError::Io(foo) if foo.kind() == io::ErrorKind::NotFound)
+            ),
+        }
     }
-
 }

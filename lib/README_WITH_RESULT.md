@@ -229,6 +229,19 @@ impl From<io::Error> for TokenizerError {
     }
 }
 ```
+We can now add a new test case for the file not found use case:
+```rust
+#[test]    
+fn test_io_error() {
+    let tokenizer = Tokenizer::new_with_validator(validator);
+    match tokenizer.from_file("./bad.txt") {
+        Ok(_) => assert!(false),
+        Err(err) => assert!(
+            matches!(err, TokenizerError::Io(foo) if foo.kind() == io::ErrorKind::NotFound)
+        ),
+    }
+}
+```
 
 ### 3. Further Discussion (V2)
 Source: token_with_result_v2.rs

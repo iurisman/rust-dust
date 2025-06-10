@@ -11,7 +11,7 @@ pub struct TokenizerError {
     //pub source: Option<Box<dyn Error>>
 }
 
-impl From<std::io::Error> for TokenizerError {
+impl From<io::Error> for TokenizerError {
     fn from(error: io::Error) -> Self {
         TokenizerError {message: format!("{}", error), token: None}
     }
@@ -34,21 +34,14 @@ impl Tokenizer {
         -> impl Iterator<Item=Result<String, TokenizerError>>
     {
         match fs::File::open(filename) {
-            Ok(file) => {self.from_buf_reader(file)},
-            Err(error) => {
-                let vec: Vec<Result<String, TokenizerError>> = vec![Err(TokenizerError::from(error))];
-                vec.into_iter()
-            }
+            Ok(file) => self.from_buf_reader(file),
+            Err(error) => vec![Err(TokenizerError::from(error))].into_iter()
         }
-    }
-
-    fn mk_error(error: io::Error) -> impl Iterator<Item=Result<String, TokenizerError>> {
-        vec![Err(TokenizerError::from(error))].into_iter()
     }
 
     /// Read tokens from a reader
     pub fn from_buf_reader<R: io::Read>(&self, reader: R) -> impl Iterator<Item=Result<String, TokenizerError>> {
-       io::BufReader::new(reader).lines()
+        io::BufReader::new(reader).lines()
             .map(|res_line|
                 res_line.map(|line|
                     line.chars().filter(|c| (self.validator)(c)).collect::<String>()
@@ -98,8 +91,10 @@ mod tests {
     #[test]
     fn test_verlaine() {
         let tokenizer = Tokenizer::new_with_validator(validator);
-        let (oks, errs): (Vec<Result<_,_>>, Vec<Result<_, _>>) =
-            tokenizer.from_file("./verlaine.txt").partition(|res| res.is_ok());
+        let (oks, _errs): (Vec<Result<_,_>>, Vec<Result<_, _>>) =
+            tokenizer.from_file("./verlaine.txt")
+                .unwrap()
+                .partition(|res| res.is_ok());
         assert_eq!(oks.len(), 45);
     }
 }

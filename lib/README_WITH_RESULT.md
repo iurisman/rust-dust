@@ -1,6 +1,5 @@
 
 ## Now with Error Handling
-source: src/token_v2.rs
 
 There's a clear problem with the current implementation: it's a happy code path. We've skirted the possibility of 
 an error with all the calls to `unwrap()`. This would be perfectly fine in unit tests, where failing fast is
@@ -61,7 +60,7 @@ running directly on the processor, without a runtime VM. By 2010 two such langua
 released: Go (2007, Google) and Rust (2009, Mozilla) — both ditching exceptions in favor
 of error propagation via complex return types.
 
-### Living without Exceptions
+### 2. Living without Exceptions
 
 To reiterate, exceptions, at least in the modern sense of the word, have these drawbacks:
 * Runtime overhead. Note, for example that Scala (2004, EPFL), an advanced dual paradigm
@@ -77,7 +76,7 @@ Instead, Rust offers two error handling mechanisms: _panic_ for non-recoverable
 exceptions that typically lead to termination of the panicking thread, and `Result` for
 recoverable errors.
 
-#### Panic
+#### 2.1. Panic
 
 Panics are meant to be used for systemic unrecoverable errors. It can be triggered
 explicitly with the `panic!` macro, or is triggered implicitly by one of the following
@@ -109,58 +108,49 @@ mimicking exception handling a la Java, but for libraries to be able to localize
 their panics instead of making the library users to deal with the unexpected panics
 coming from 3rd party crates.
 
-#### The `Result` Type
+#### 2.2. The `Result` Type
+
 All user errors, like trying to read a file that doesn't exist, and recoverable system
 errors, like timing out on a network call, are meant to be handled with the `Result` type.
 It's the type that is returned by any library, standard or not, so my task as a consumer
-of those libraries is to correctly handle the `Result` they return by
-either recovering from the error, like retrying the failed operation, or propagating it
-up the call stack to be handled there.
+of those libraries is to correctly handle the `Result` they return by either recovering 
+from the error, like retrying the failed operation, or propagating it up the call stack 
+to be handled by a caller.
+
+#### 2.3. Implicit `Error` Propagation
 
 In a well organized codebase, each fallible function returns an
 object of type `Result<T,E>`, where `T` is the good result, if the function succeeded,
 and `E` is the error type otherwise. `Result` is an enum populated by two instances.
 `Ok(T)` wraps the successful return object, while `Err(E)` wraps the error object.
-Both `T` and `E` are objects of any type; there's no reason on the part of the language
-designers to limit return types of my functions or what constitutes an error.
-If you're used to thinking in object-oriented languages, this seems strange: exceptions
-are frequently handled up the call stack and across an abstraction boundary from where
-they were thrown. In object-oriented languages, this type of behavior transparency is
-handled with inheritance, when different error types have a common abstract supertype,
-which compels the concrete error types to implement methods that can be used across
-abstraction boundary.
-
-[[ Aside to be moved elsewhere ]]
-
-Rust has no type inheritance, but it expresses a similar capability with trait
-bounds, which constrain generic parameters to only those types that implement the named
-traits. For example, here's the declaration of the `std::boxed::Box` type:
+Both `T` and `E` are objects of any type. There's absolutely no expectation on what
+user functions can return, although there's a bit of commonly used syntactic sugar,
+which makes error propagation ergonomic: `some_result_value?` desugars to
 ```rust
-pub struct Box<T, A = Global>(/* private fields */)
-where
-    A: Allocator,
-    T: ?Sized;
+match some_result_value {
+    Ok(val) => val,
+    Err(err) => return Err(From::from(err))
+}
 ```
-It takes two type parameters, both of which are constrained by the trait bounds. Here,
-`A = Global` defines the default value for the type param `A`. The question mark in
-`?Sized` means somewhat of an inverse idea: it relaxes the implicit trait bound `Sized`,
-which otherwise would have been applied. All `struct`s in rust
-implement the `Sized` trait, which is to say have a known size at compile time. As we
-already saw in the implementation of stack, `Box` provides the way of deferring the
-heap allocation of `T`, such that the size of `Box` itself is known, even though the
-size of `T` may not be. Thus `?Sized` means that `T` is opted out of the trait `Sized`;
-it may but doesn't have to implement it.
+Which is to say that if some value of type `Result<T,E>` is a success, `?` unboxes the `T`,
+but if it's a failure, `?` short-circuits out of the function with the possibly converted value
+of `E`, boxed in `Err`. If you do nothing, `From::from(err)` returns the `err` value itself, 
+thanks to the blanket identity implementation of `From<T>`:
+```rust
+impl<T> From<T> for T {
+    fn from(t: T) -> T { t }
+}
+```
+This nuance is what enables us to implicitly convert from one error type to another, as we propagate it
+up the stack. This is important, because most crates use their own error types, exposing data pertinent 
+to the kinds of errors the library may encounter. Thus, programmers typically have to deal with several
+error types, converting them to some new error type.  We will see how this automatic conversion works
+in {todo}.
 
-[[ End aside]]
+#### 2.4. Explicit `Error` Propagation (V1)
+source: token_with_result_v1.rs
 
-In rust, error propagation up the call stack is achieved by either explicit conversion
-from one error type to another, or implicitly.
-
-##### Explicit `Error` Propagation without Closures
-
-The reason the issue arises is that almost any library uses its own error type exposing methods pertinent 
-to the kinds of errors the library may encounter. Thus, our custom tokenizer error would likely want to 
-expose this contextual information:
+I start by defining our custom tokenizer error would likely want to expose this contextual information:
 ```rust
 #[derive(Debug)]
 pub struct TokenizerError {
@@ -170,75 +160,84 @@ pub struct TokenizerError {
     pub message: String
 }
 ```
-By the Rust convention, error types are always named `Error`. I'm using `TokenizerError` just for
-convenience of reference. Now, our code is responsible for converting the errors we get from other libraries, like
-`std::io` and `std::fs` and converting them to `TokenizerError` Let's start with the 
-following V1 method:
 
+Let's start with `from_buf_reader()`, whose original implementation was as follows:
+```rust
+/// Read tokens from a reader
+pub fn from_buf_reader<R: Read>(&self, reader: R) -> impl Iterator<Item=String> {
+    BufReader::new(reader).lines()
+        .map(|res| res.unwrap())
+        .map(|str| str.chars().filter(|c| (self.validator)(c)).collect::<String>())
+        .flat_map(|line| line.split_whitespace().map(String::from).collect::<Vec<String>>())
+}
+```
+The only fallible call here is `BufReader.lines()`, which returns an iterator over parse results containing either the 
+parsed line as a string or an error if the byte array contained non UTF-8 character. We will let the caller process 
+the errors by returning  `impl Iterator<Item=Result<String, TokenizerError>>`. 
+
+The name of the game here is to replace the call to `unwrap()` with something that propagates the error up the call
+stack, instead of panicking. Because the call to `unwrap()` is inside a closure, we cannot use the `?` syntax
+to return from the containing function. Instead, we map the successful result to its filtered version. The 
+flat map also receives a `Result` as the argument and maps it to an iterator of `Result`s to be flattended into
+the invoking iterator.
+
+```rust
+/// Read tokens from a reader
+    pub fn from_buf_reader<R: io::Read>(&self, reader: R) -> impl Iterator<Item=Result<String, TokenizerError>> {
+        io::BufReader::new(reader).lines()
+            .map(|res_line|
+                res_line.map(|line|
+                    line.chars().filter(|c| (self.validator)(c)).collect::<String>()
+                )
+            )
+            .flat_map(|res_line|
+                match res_line {
+                    Err(err) =>
+                        vec![Err(TokenizerError::from(err))],
+                    Ok(line) =>
+                        line.split_whitespace()
+                            .map(|str| Ok(String::from(str)))
+                            .collect::<Vec<Result<String, _>>>()
+                }
+            )
+    }
+```
+
+Finally, I fix the `from_file()` method, whose original implementation was as follows:
 ```rust
     pub fn from_file(&self, filename: &str) -> impl Iterator<Item=String> {
         let file = File::open(filename).unwrap();
         self.from_buf_reader(file)
     }
 ```
-I only need to make two changes: the return type changes to `Result<...>` and the call to
-`unwrap()` must be replaced with a `match` that does explicit conversion from `std::io::error::Error` 
-to `TokenizerError`:
+Here, the call to `unwrap()` is not inside a closure so we can take advantage of the `?` syntax:
 
 ```rust
-    pub fn from_file(&self, filename: &str)
-        -> Result<impl Iterator<Item=String>, TokenizerError>
-    {
-        match File::open(filename) {
-            Ok(file) => {
-                Ok(self.from_buf_reader(file))
-            }
-            Err(err) => {  // This is std::io::error::Error
-                Err(TokenizerError {message: format!("{}", err), token: None})
-            }
-        }
-    }
+/// Read tokens from a file
+pub fn from_file(&self, filename: &str)
+    -> Result<impl Iterator<Item=Result<String, TokenizerError>>, TokenizerError>
+{
+    Ok(self.from_buf_reader(fs::File::open(filename)?))
+}
 ```
-
-This is better but not yet right. For one this is quite verbose: each time we have to convert from `io::Error`
-to `TokenizerError` we'd have to cut and past the same code. We can avoid this tedium by factoring the
-comon code out into an interpretation of the `From` trait, designed just for this use case:
+Note the implicit conversion from `io::Error`, returned by `fs::File::open()`, to `TokenizerError`.
+This is possible because we provided an implementation of the `From` trait that covers exactly this use case.:
 ```rust
-impl From<std::io::Error> for TokenizerError {
+impl From<io::Error> for TokenizerError {
     fn from(error: std::io::Error) -> Self {
         TokenizerError {message: format!("{}", error), token: None}
     }
 }
 ```
-Now we can rewrite the `from_file()` method more consicely:
-```rust
-    match File::open(filename) {
-        Ok(file) => { Ok(self.from_buf_reader(file)) }
-        Err(error) => { Err(From::from(error)) }
-```
 
-Conveniently, there's syntactic sugar for this exact construct: `?`. `expr?` desugars to
-```rust
-match expr {
-    Ok(value) => val,
-    Err(error) => return Err(From::from(error)),
-}
-```
-Thus, we can simplify `from_file()` even further:
-```rust
-pub fn from_file(&self, filename: &str)
-    -> Result<impl Iterator<Item=String>, TokenizerError> 
-{
-    Ok(self.from_buf_reader(File::open(filename)?)) 
-}
-```
+### 3. Further Discussion (V2)
+Source: token_with_result_v2.rs
 
-We won't even need the `Ok(...)` once we convert `from_buf_reader()` to also return `Result`, which
-I'll do next.
-
-#### Explicit `Error` Propagation with Closures
-
-
+The solution we developed in V1 is already much better than the original tokenizer, because we've replaced panics
+with orderly statically typed error handling. The one last wrinkle to smooth out is the unsightly return type 
+`Result<impl Iterator<Item=Result<String, TokenizerError>>, TokenizerError>` returned by `from_file()`. If the caller
+to be able to tell apart the two `TokenizerError`s, we'd have to expose implementation details that need not be
+exposed. 
 
 
 

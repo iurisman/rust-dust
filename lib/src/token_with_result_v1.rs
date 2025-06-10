@@ -11,7 +11,7 @@ pub struct TokenizerError {
     //pub source: Option<Box<dyn Error>>
 }
 
-impl From<std::io::Error> for TokenizerError {
+impl From<io::Error> for TokenizerError {
     fn from(error: io::Error) -> Self {
         TokenizerError {message: format!("{}", error), token: None}
     }

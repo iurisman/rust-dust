@@ -1,19 +1,15 @@
 use std::{fs, io};
-use std::io::BufRead;
+use std::io::{BufRead, BufReader, Lines};
+use either::Either;
 
 #[derive(Debug)]
-pub struct TokenizerError {
-    // Bad token, if any
-    pub token: Option<String>,
-    // Error message
-    pub message: String,
-    // Cause
-    //pub source: Option<Box<dyn Error>>
+enum TokenizerError {
+    Io(io::Error),
 }
 
 impl From<io::Error> for TokenizerError {
     fn from(error: io::Error) -> Self {
-        TokenizerError {message: format!("{}", error), token: None}
+        TokenizerError::Io(error)
     }
 }
 
@@ -29,13 +25,27 @@ impl Tokenizer {
         Tokenizer {validator}
     }
 
-    /// Read tokens from a file
+    /// Does not compile
+    // pub fn from_file(&self, filename: &str)
+    //     -> impl Iterator<Item=Result<String, TokenizerError>>
+    // {
+    //     match fs::File::open(filename) {
+    //         Ok(file) => self.from_buf_reader(file),
+    //         Err(error) => vec![Err(TokenizerError::from(error))].into_iter()
+    //     }
+    // }
+
     pub fn from_file(&self, filename: &str)
         -> impl Iterator<Item=Result<String, TokenizerError>>
     {
         match fs::File::open(filename) {
-            Ok(file) => self.from_buf_reader(file),
-            Err(error) => vec![Err(TokenizerError::from(error))].into_iter()
+            Ok(file) => Either::Left(self.from_buf_reader(file)),
+            Err(error) =>
+                match error.kind() {
+                    io::ErrorKind::NotFound => Either::Right(Either::Left(vec![Err(TokenizerError::from(error))].into_iter())),
+                    _ => Either::Right(Either::Right(vec![Err(TokenizerError::from(error))].into_iter()))
+                }
+
         }
     }
 
@@ -93,8 +103,19 @@ mod tests {
         let tokenizer = Tokenizer::new_with_validator(validator);
         let (oks, _errs): (Vec<Result<_,_>>, Vec<Result<_, _>>) =
             tokenizer.from_file("./verlaine.txt")
-                .unwrap()
+                //.unwrap()
                 .partition(|res| res.is_ok());
         assert_eq!(oks.len(), 45);
     }
+
+    #[test]
+    fn test_io_error() {
+        let tokenizer = Tokenizer::new_with_validator(validator);
+        let (oks, _errs): (Vec<Result<_,_>>, Vec<Result<_, _>>) =
+            tokenizer.from_file("./verlaine.txt")
+                //.unwrap()
+                .partition(|res| res.is_ok());
+        assert_eq!(oks.len(), 45);
+    }
+
 }

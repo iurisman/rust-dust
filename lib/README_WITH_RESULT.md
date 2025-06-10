@@ -237,7 +237,49 @@ The solution we developed in V1 is already much better than the original tokeniz
 with orderly statically typed error handling. The one last wrinkle to smooth out is the unsightly return type 
 `Result<impl Iterator<Item=Result<String, TokenizerError>>, TokenizerError>` returned by `from_file()`. If the caller
 to be able to tell apart the two `TokenizerError`s, we'd have to expose implementation details that need not be
-exposed. 
+exposed.
+
+Rather, I want to expose only one error, while keeping the return type as an `impl Iterator`. This means that the
+error returned by `fs::File::open()` must be repackaged in a single element iterator. Something like this:
+```rust
+    /// Read tokens from a file
+    pub fn from_file(&self, filename: &str)
+        -> impl Iterator<Item=Result<String, TokenizerError>>
+    {
+        match fs::File::open(filename) {
+            Ok(file) => self.from_buf_reader(file),
+            Err(error) => vec![Err(TokenizerError::from(error))].into_iter()
+        }
+    }
+```
+This would work fine in an OO language, like Scala, where the actual implementation would be determined at runtime.
+Rust won't compile this:
+```rust
+   = note: expected opaque type `impl Iterator<Item = Result<String, token_with_result_v2::TokenizerError>>`
+                   found struct `std::vec::IntoIter<Result<_, token_with_result_v2::TokenizerError>>`
+help: you could change the return type to be a boxed trait object
+   |
+34 -         -> impl Iterator<Item=Result<String, TokenizerError>>
+34 +         -> Box<dyn Iterator<Item=Result<String, TokenizerError>>>
+   |
+help: if you change the return type to expect trait objects, box the returned expressions
+   |
+37 ~             Ok(file) => Box::new(self.from_buf_reader(file)),
+38 ~             Err(error) => Box::new(vec![Err(TokenizerError::from(error))].into_iter())
+   |
+```
+The hint suggests that we solve this problem with the familiar technique of `Box`ing the return type. 
+We've already encountered this when we implemented recursive `Stack` type. The difference here is that the reason 
+compiler can't determine the actual type is one of two possible opaque type. Here again, we could
+return trait object `<dyn Iterator<...>>` to make both arms to resolve to the same sized static type. However,
+I don't want to change the return type to `Box<dyn Iterator<...>>`. Rather, I'd like to solve what is
+likely to be a general problem: how to return one of several opaque types implementing, implementing `Iterator`.
+
+
+
+
+
+
 
 
 

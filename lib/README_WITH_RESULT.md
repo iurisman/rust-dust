@@ -349,8 +349,20 @@ Note, that since `Either` is symmetric, I can combine them to create more branch
 branches `x,y.z`, I could do `(Left(x), Right(Left(y), Right(z)))`.
 
 #### 3.4. Chaining Iterators
-
-
+It turns out, we don't even need an explicit sum type to unify the two different opaque implementors of
+`Iterator`. We can let the compiler do that for as as well:
+```rust
+pub fn from_file_chain(&self, filename: &str)
+    -> impl Iterator<Item=Result<String, TokenizerError>>
+{
+    let (iter1_opt, iter2_opt) =
+        match fs::File::open(filename) {
+            Ok(file) => (Some(self.from_buf_reader(file)), None),
+            Err(error) => (None, Some(vec![Err(TokenizerError::from(error))]))
+        };
+    iter1_opt.into_iter().flatten().chain(iter2_opt.into_iter().flatten())
+}
+```
 
 
 ### 4. Preserving Backtrace

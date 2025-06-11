@@ -55,19 +55,16 @@ impl Tokenizer {
         }
     }
 
-    // pub fn from_file(&self, filename: &str)
-    //     -> impl Iterator<Item=Result<String, TokenizerError>>
-    // {
-    //     match fs::File::open(filename) {
-    //         Ok(file) => Either::Left(self.from_buf_reader(file)),
-    //         Err(error) =>
-    //             match error.kind() {
-    //                 io::ErrorKind::NotFound => Either::Right(Either::Left(vec![Err(TokenizerError::from(error))].into_iter())),
-    //                 _ => Either::Right(Either::Right(vec![Err(TokenizerError::from(error))].into_iter()))
-    //             }
-    //
-    //     }
-    // }
+    pub fn from_file_chain(&self, filename: &str)
+        -> impl Iterator<Item=Result<String, TokenizerError>>
+    {
+        let (iter1_opt, iter2_opt) =
+            match fs::File::open(filename) {
+                Ok(file) => (Some(self.from_buf_reader(file)), None),
+                Err(error) => (None, Some(vec![Err(TokenizerError::from(error))]))
+            };
+        iter1_opt.into_iter().flatten().chain(iter2_opt.into_iter().flatten())
+    }
 
     /// Read tokens from a reader
     pub fn from_buf_reader<R: io::Read>(&self, reader: R) -> impl Iterator<Item=Result<String, TokenizerError>> {
@@ -146,6 +143,11 @@ mod tests {
             tokenizer.from_file_either("./verlaine.txt")
                 .partition(|res| res.is_ok());
         assert_eq!(oks.len(), 45);
+
+        let (oks, _errs): (Vec<Result<_,_>>, Vec<Result<_, _>>) =
+            tokenizer.from_file_chain("./verlaine.txt")
+                .partition(|res| res.is_ok());
+        assert_eq!(oks.len(), 45);
     }
 
     #[test]
@@ -162,6 +164,15 @@ mod tests {
         }
 
         let vec = tokenizer.from_file_either("./bad.txt").collect::<Vec<_>>();
+        assert_eq!(vec.len(), 1);
+        match vec.first().unwrap() {
+            Ok(_) => assert!(false),
+            Err(err) => assert!(
+                matches!(err, TokenizerError::Io(foo) if foo.kind() == io::ErrorKind::NotFound)
+            ),
+        }
+
+        let vec = tokenizer.from_file_chain("./bad.txt").collect::<Vec<_>>();
         assert_eq!(vec.len(), 1);
         match vec.first().unwrap() {
             Ok(_) => assert!(false),

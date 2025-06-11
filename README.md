@@ -26,7 +26,7 @@ in the following sections, uncomment the corresponding module registration in `m
 #### 1. [Singly-linked Stack](stack/README.md)
 #### 2. [Doubly-linked Deque](deque/README.md)
 #### 3. [Rust Dust Library](lib/README.md)
-##### 3.1. [How to Build a Simple Rust Library](lib.README.md#1-how-to-build-a-simple-rust-library)
+##### 3.1. [How to Build a Simple Rust Library](lib/README.md#1-how-to-build-a-simple-rust-library)
 ##### 3.2. Stream Tokenizer Library
 #### 4. [Trie (Prefix Tree)](trie/README.md)
 

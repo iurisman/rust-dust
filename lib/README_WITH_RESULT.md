@@ -229,7 +229,7 @@ impl From<io::Error> for TokenizerError {
     }
 }
 ```
-We can now add a new test case for the file not found use case:
+We can now add a new test case for the file not found error:
 ```rust
 #[test]    
 fn test_io_error() {
@@ -245,6 +245,8 @@ fn test_io_error() {
 
 ### 3. Further Discussion (V2)
 Source: token_with_result_v2.rs
+
+#### 3.1. The Problem
 
 The solution we developed in V1 is already much better than the original tokenizer, because we've replaced panics
 with orderly statically typed error handling. The one last wrinkle to smooth out is the unsightly return type 
@@ -288,17 +290,70 @@ return trait object `<dyn Iterator<...>>` to make both arms to resolve to the sa
 I don't want to change the return type to `Box<dyn Iterator<...>>`. Rather, I'd like to solve what is
 likely to be a general problem: how to return one of several opaque types implementing, implementing `Iterator`.
 
+So far, I've found two ways to make the Rust compiler do the work for us: by using enums or by chaining the two
+iterators with `Iterator.chain()`.
+
+#### 3.1. Abstracting Over Opaque Types with `enum`s
+Enums are additive types which unite arbitrary types in a single type. To unite the two different iterator types,
+we create a new enum `TokenizerIter` which one of the two possible arms of the match statement above:
+```rust
+pub enum TokenizerIter<I1,I2> {
+    Iter1(I1),
+    Iter2(I2),
+}
+```
+
+In order to use `TokenizerIter` in place of `impl Iterator<Item=Result<String, TokenizerError>>` it needs to implement
+`Iterator` with that item type:
+```rust
+impl<I1: Iterator<Item=Result<String,TokenizerError>>, I2: Iterator<Item=Result<String,TokenizerError>>>
+Iterator for TokenizerIter<I1, I2> {
+    type Item = Result<String, TokenizerError>;
+    fn next(&mut self) -> Option<Result<String, TokenizerError>> {
+        match self {
+            Self::Iter1(iter1) => iter1.next(),
+            Self::Iter2(iter2) => iter2.next(),
+        }
+    }
+}
+```
+This is it, really!
+
+#### 3.4. Abstracting Over Opaque Types with `either`s
+
+Except, we just reinvented the `Either` enum, available from the `either` crate. (Will it make it
+into the standard library, like in Scala and Haskell?)
+
+```rust
+pub enum Either<L, R> {
+    /// A value of type `L`.
+    Left(L),
+    /// A value of type `R`.
+    Right(R),
+}
+```
+It's symmetric, has lots of useful methods, and, in particular, implements `Iterator`. We can just use it without
+worrying about implementing anything ourselves:
+```rust
+pub fn from_file_either(&self, filename: &str)
+                 -> impl Iterator<Item=Result<String, TokenizerError>>
+{
+    match fs::File::open(filename) {
+        Ok(file) => Either::Left(self.from_buf_reader(file)),
+        Err(error) => Either::Right(vec![Err(TokenizerError::from(error))].into_iter())
+    }
+}
+```
+
+Note, that since `Either` is symmetric, I can combine them to create more branches. For example to have three
+branches `x,y.z`, I could do `(Left(x), Right(Left(y), Right(z)))`.
+
+#### 3.4. Chaining Iterators
 
 
 
 
-
-
-
-
-
-
-
+### 4. Preserving Backtrace
 
 
 A look at the docs for `stc::io::Error` reveals the `source()` method,

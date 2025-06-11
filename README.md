@@ -24,10 +24,10 @@ to have them ignored by the compiler. If you like to reproduce a compilation err
 in the following sections, uncomment the corresponding module registration in `main.rs`.
 
 #### 1. [Singly-linked Stack](stack/README.md)
-#### 2. [Foubly-linked Deque](deque/README.md)
+#### 2. [Doubly-linked Deque](deque/README.md)
 #### 3. [Rust Dust Library](lib/README.md)
-##### 2.1. How to Build a Simple Rust Library
-##### 2.2. Stream Tokenizer
+##### 3.1. [How to Build a Simple Rust Library](lib.README.md#1-how-to-build-a-simple-rust-library)
+##### 3.2. Stream Tokenizer Library
 #### 4. [Trie (Prefix Tree)](trie/README.md)
 
 

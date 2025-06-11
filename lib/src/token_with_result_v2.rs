@@ -31,23 +31,43 @@ impl Tokenizer {
     // {
     //     match fs::File::open(filename) {
     //         Ok(file) => self.from_buf_reader(file),
-    //         Err(error) => vec![Err(TokenizerError::from(error))].into_iter()
+    //         Err(error) => {
+    //             vec![Err(TokenizerError::from(error))].into_iter()
+    //         }
     //     }
     // }
 
-    pub fn from_file(&self, filename: &str)
-        -> impl Iterator<Item=Result<String, TokenizerError>>
+    pub fn from_file_enum(&self, filename: &str)
+                     -> impl Iterator<Item=Result<String, TokenizerError>>
+    {
+        match fs::File::open(filename) {
+            Ok(file) => TokenizerIter::Iter1(self.from_buf_reader(file)),
+            Err(error) => TokenizerIter::Iter2(vec![Err::<String, TokenizerError>(TokenizerError::from(error))].into_iter())
+        }
+    }
+
+    pub fn from_file_either(&self, filename: &str)
+                     -> impl Iterator<Item=Result<String, TokenizerError>>
     {
         match fs::File::open(filename) {
             Ok(file) => Either::Left(self.from_buf_reader(file)),
-            Err(error) =>
-                match error.kind() {
-                    io::ErrorKind::NotFound => Either::Right(Either::Left(vec![Err(TokenizerError::from(error))].into_iter())),
-                    _ => Either::Right(Either::Right(vec![Err(TokenizerError::from(error))].into_iter()))
-                }
-
+            Err(error) => Either::Right(vec![Err(TokenizerError::from(error))].into_iter())
         }
     }
+
+    // pub fn from_file(&self, filename: &str)
+    //     -> impl Iterator<Item=Result<String, TokenizerError>>
+    // {
+    //     match fs::File::open(filename) {
+    //         Ok(file) => Either::Left(self.from_buf_reader(file)),
+    //         Err(error) =>
+    //             match error.kind() {
+    //                 io::ErrorKind::NotFound => Either::Right(Either::Left(vec![Err(TokenizerError::from(error))].into_iter())),
+    //                 _ => Either::Right(Either::Right(vec![Err(TokenizerError::from(error))].into_iter()))
+    //             }
+    //
+    //     }
+    // }
 
     /// Read tokens from a reader
     pub fn from_buf_reader<R: io::Read>(&self, reader: R) -> impl Iterator<Item=Result<String, TokenizerError>> {
@@ -67,6 +87,21 @@ impl Tokenizer {
                             .collect::<Vec<Result<String, _>>>()
                 }
             )
+    }
+}
+
+pub enum TokenizerIter<I1,I2> {
+    Iter1(I1),
+    Iter2(I2),
+}
+impl<I1: Iterator<Item=Result<String,TokenizerError>>, I2: Iterator<Item=Result<String,TokenizerError>>>
+Iterator for TokenizerIter<I1, I2> {
+    type Item = Result<String, TokenizerError>;
+    fn next(&mut self) -> Option<Result<String, TokenizerError>> {
+        match self {
+            Self::Iter1(iter1) => iter1.next(),
+            Self::Iter2(iter2) => iter2.next(),
+        }
     }
 }
 
@@ -101,9 +136,14 @@ mod tests {
     #[test]
     fn test_verlaine() {
         let tokenizer = Tokenizer::new_with_validator(validator);
+
         let (oks, _errs): (Vec<Result<_,_>>, Vec<Result<_, _>>) =
-            tokenizer.from_file("./verlaine.txt")
-                //.unwrap()
+            tokenizer.from_file_enum("./verlaine.txt")
+                .partition(|res| res.is_ok());
+        assert_eq!(oks.len(), 45);
+
+        let (oks, _errs): (Vec<Result<_,_>>, Vec<Result<_, _>>) =
+            tokenizer.from_file_either("./verlaine.txt")
                 .partition(|res| res.is_ok());
         assert_eq!(oks.len(), 45);
     }
@@ -111,7 +151,8 @@ mod tests {
     #[test]
     fn test_io_error() {
         let tokenizer = Tokenizer::new_with_validator(validator);
-        let vec = tokenizer.from_file("./bad.txt").collect::<Vec<_>>();
+
+        let vec = tokenizer.from_file_enum("./bad.txt").collect::<Vec<_>>();
         assert_eq!(vec.len(), 1);
         match vec.first().unwrap() {
             Ok(_) => assert!(false),
@@ -119,5 +160,15 @@ mod tests {
                 matches!(err, TokenizerError::Io(foo) if foo.kind() == io::ErrorKind::NotFound)
             ),
         }
+
+        let vec = tokenizer.from_file_either("./bad.txt").collect::<Vec<_>>();
+        assert_eq!(vec.len(), 1);
+        match vec.first().unwrap() {
+            Ok(_) => assert!(false),
+            Err(err) => assert!(
+                matches!(err, TokenizerError::Io(foo) if foo.kind() == io::ErrorKind::NotFound)
+            ),
+        }
+
     }
 }

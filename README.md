@@ -29,5 +29,6 @@ in the following sections, uncomment the corresponding module registration in `m
 ##### 3.1. [How to Build a Simple Rust Library](lib/README.md#1-how-to-build-a-simple-rust-library)
 ##### 3.2. [Stream Tokenizer Library](lib/README.md#2-stream-tokenizer)
 #### 4. [Trie (Prefix Tree)](trie/README.md)
+#### 5. [Trie Redux with Error Handling](lib/README_WITH_RESULT.md)
 
 

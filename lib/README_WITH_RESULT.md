@@ -348,9 +348,10 @@ pub fn from_file_either(&self, filename: &str)
 Note, that since `Either` is symmetric, I can combine them to create more branches. For example to have three
 branches `x,y.z`, I could do `(Left(x), Right(Left(y), Right(z)))`.
 
-#### 3.4. Chaining Iterators
+#### 3.4. Chaining Optional Iterators
+
 It turns out, we don't even need an explicit sum type to unify the two different opaque implementors of
-`Iterator`. We can let the compiler do that for as as well:
+`Iterator`. We can let the compiler do that for us as well:
 ```rust
 pub fn from_file_chain(&self, filename: &str)
     -> impl Iterator<Item=Result<String, TokenizerError>>
@@ -363,12 +364,14 @@ pub fn from_file_chain(&self, filename: &str)
     iter1_opt.into_iter().flatten().chain(iter2_opt.into_iter().flatten())
 }
 ```
-
+Here, I've delegated the job of `Either` to two calls to `flatten()`, one of which will return an empty iterator
+and the other the iterator to be returned, while `chain()` will stitch them together.
 
 ### 4. Preserving Backtrace
-
 
 A look at the docs for `stc::io::Error` reveals the `source()` method,
  which returns the cause of the I/O error. In this case it's `None`, because the underlying error did not
  originate in the user space, but by the OS. However, to be good citizens we should attach
  this I/O error as the source of our error to help clients of our library debug their errors. 
+
+TBC

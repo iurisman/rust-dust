@@ -95,7 +95,7 @@ mod tests {
         match tokenizer.from_file("./bad.txt") {
             Ok(_) => assert!(false),
             Err(err) => assert!(
-                matches!(err, TokenizerError::Io(foo) if foo.kind() == io::ErrorKind::NotFound)
+                matches!(err, TokenizerError::Io(ioerr) if ioerr.kind() == io::ErrorKind::NotFound)
             ),
         }
     }

@@ -177,7 +177,7 @@ mod tests {
         match vec.first().unwrap() {
             Ok(_) => assert!(false),
             Err(err) => assert!(
-                matches!(err, TokenizerError::Io(foo) if foo.kind() == io::ErrorKind::NotFound)
+                matches!(err, TokenizerError::Io(ioerr) if ioerr.kind() == io::ErrorKind::NotFound)
             ),
         }
 

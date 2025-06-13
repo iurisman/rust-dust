@@ -19,8 +19,8 @@ READ (unit, format, ERR=100) variable
 ! Handle error here
 ```
 Things were iffier when it came to the errors that were thrown entirely by the
-user code, like division by zero or integer overflow. In response, PL/I (IBM, 1964)
-was the first language to offer exceptions that could be used to handle such conditions:
+user code, like division by zero or integer overflow. In response, PL/I (IBM, 1964) was
+the first language to offer exceptions that could be used to handle such conditions declaratively:
 ```pl/i
 ON ZERODIVIDE BEGIN;
     PUT SKIP LIST('Error: Division by zero detected!');
@@ -31,7 +31,7 @@ This advance was made possible by an important development in compiler design; f
 translator of the high level code to the machine instructions, compilers began inserting
 logic that was never written by the programmer, e.g. runtime checks if the denominator is
 zero. Moreover, what compilers had to do to implement certain features depended on the
-target instruction set and the OS, so compilers began optimizing for target architectures.
+instruction set and the OS, so compilers began optimizing for target architectures.
 
 By the time the C language was released (Bell Labs, 1974) the concept of exceptions
 was well understood by language designers. And yet, Dennis Ritchie left it out entirely
@@ -42,11 +42,11 @@ for two reasons:
   and in order for a C program behave the same way in different environments, it had to be
   minimalistic.
 
-C++ (1985, AT&T Bell Labs) added exceptions, to the chagrin of many programmers. 
+C++ (AT&T Bell Labs, 1985) added exceptions — to the chagrin of many programmers. 
 Without the support of a VM, exceptions proved expensive and more importantly unsafe. Many teams banned 
 or severely restricted the use of exceptions in C++.
 
-All new computer languages like Java, C#, Erlang run on a VM, enabling
+All new computer languages like Java, C#, or Erlang run on a VM, enabling
 safe and efficient exception handling. (Not to mention all the interpreted languages
 like Ruby and Python, which _are_ their own VM.) The price of this high-level convenience is 
 low-level inefficiency. Many use cases, like
@@ -115,7 +115,7 @@ of those libraries is to correctly handle the `Result` they return by either rec
 from the error, like retrying the failed operation, or propagating the error up the call stack 
 to be handled by a caller.
 
-#### 2.2.1. Implicit `Error` Propagation
+#### 2.2.1. Implicit Error Propagation
 
 In a well organized codebase, each fallible function returns an
 object of type `Result<T,E>`, where `T` is the good result, if the function succeeded,
@@ -224,9 +224,7 @@ Note the implicit conversion from `io::Error`, returned by `fs::File::open()`, t
 This is possible because we provided an implementation of the `From` trait that covers exactly this use case.:
 ```rust
 impl From<io::Error> for TokenizerError {
-    fn from(error: std::io::Error) -> Self {
-        TokenizerError {message: format!("{}", error), token: None}
-    }
+    fn from(error: io::Error) -> Self { TokenizerError::Io(error) }
 }
 ```
 We can now add a new test case for the file not found error:
@@ -268,7 +266,7 @@ error returned by `fs::File::open()` must be repackaged in a single element iter
     }
 ```
 This would work in an OO language, like Scala, where the actual implementation would be determined at runtime.
-Rust won't compile this:
+But Rust won't compile this:
 ```rust
    = note: expected opaque type `impl Iterator<Item = Result<String, token_with_result_v2::TokenizerError>>`
                    found struct `std::vec::IntoIter<Result<_, token_with_result_v2::TokenizerError>>`
@@ -283,11 +281,10 @@ help: if you change the return type to expect trait objects, box the returned ex
 38 ~             Err(error) => Box::new(vec![Err(TokenizerError::from(error))].into_iter())
    |
 ```
-The hint suggests that we solve this problem with the familiar technique of `Box`ing the return type. 
+The hint suggests that could we solve this problem with the familiar technique of `Box`ing the return type. 
 We've already encountered this when we implemented the recursive `Stack` type. The difference here is that the reason 
-compiler can't determine the actual type is that it resolves at tuntime to one of two different opaque type.
-Here again, we could return trait object `<dyn Iterator<...>>` to make both arms to resolve to the same sized static 
-type. However, I don't want to change the return type to `Box<dyn Iterator<...>>`. Rather, I'd like to solve what is
+the compiler can't determine the actual type is that it resolves at tuntime to one of two different opaque type.
+However, I don't want to change the return type. Rather, I'd like to solve what is
 likely to be a general problem: how to return one of several opaque types implementing `Iterator`.
 
 So far, I've found two ways to make the Rust compiler do the work for us: by using enums or by chaining the two
@@ -303,8 +300,8 @@ pub enum TokenizerIter<I1,I2> {
 }
 ```
 
-In order to use `TokenizerIter` in place of `impl Iterator<Item=Result<String, TokenizerError>>` it needs to implement
-`Iterator` with that item type:
+In order to use `TokenizerIter` in place of `impl Iterator<Item=Result<String, TokenizerError>>`, it needs to implement
+`Iterator` with the same item type:
 ```rust
 impl<I1: Iterator<Item=Result<String,TokenizerError>>, I2: Iterator<Item=Result<String,TokenizerError>>>
 Iterator for TokenizerIter<I1, I2> {
@@ -364,8 +361,8 @@ pub fn from_file_chain(&self, filename: &str)
     iter1_opt.into_iter().flatten().chain(iter2_opt.into_iter().flatten())
 }
 ```
-Here, I've delegated the job of `Either` to two calls to `flatten()`, one of which will return an empty iterator
-and the other the iterator of results, while `chain()` will stitch them together.
+Here, I've delegated the job of `Either` to two calls to `flatten()`, one of which will produce an empty iterator
+and the other the iterator to be returned by the function, while `chain()` will stitch them together.
 
 ## 4. Preserving Backtrace
 
